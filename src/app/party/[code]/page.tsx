@@ -59,6 +59,20 @@ export default function PartyView() {
     }
   }, [code]);
 
+  const fetchPredictions = useCallback(async (gId: string) => {
+    try {
+      const res = await fetch(`/api/party/${code}/predictions`, {
+        headers: { 'x-guest-id': gId },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPredictions(data.predictions);
+      }
+    } catch (err) {
+      console.error('Failed to fetch predictions:', err);
+    }
+  }, [code]);
+
   useEffect(() => {
     const initSession = async () => {
       // Get party-specific guest info from localStorage
@@ -88,6 +102,7 @@ export default function PartyView() {
           setGuestId(storedGuestId);
           setGuestName(storedGuestName);
           fetchLeaderboard();
+          fetchPredictions(storedGuestId);
           return;
         }
       }
@@ -97,7 +112,7 @@ export default function PartyView() {
     };
     
     initSession();
-  }, [code, router, fetchParty, fetchLeaderboard]);
+  }, [code, router, fetchParty, fetchLeaderboard, fetchPredictions]);
 
   // Set up polling once we have a valid session
   useEffect(() => {
@@ -138,6 +153,7 @@ export default function PartyView() {
           setGuestName(data.guest.name);
           setNeedsRejoin(false);
           fetchLeaderboard();
+          fetchPredictions(data.guest.id);
         }
       } else {
         // Name not found - redirect to join as new guest

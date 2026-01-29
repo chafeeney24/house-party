@@ -55,6 +55,20 @@ export default function HostPlayView() {
     }
   }, [code]);
 
+  const fetchPredictions = useCallback(async (gId: string) => {
+    try {
+      const res = await fetch(`/api/party/${code}/predictions`, {
+        headers: { 'x-guest-id': gId },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setPredictions(data.predictions);
+      }
+    } catch (err) {
+      console.error('Failed to fetch predictions:', err);
+    }
+  }, [code]);
+
   useEffect(() => {
     const initSession = async () => {
       const storedGuestId = localStorage.getItem(`guestId_${code}`);
@@ -72,10 +86,11 @@ export default function HostPlayView() {
       
       await fetchParty();
       await fetchLeaderboard();
+      await fetchPredictions(storedGuestId);
     };
     
     initSession();
-  }, [code, router, fetchParty, fetchLeaderboard]);
+  }, [code, router, fetchParty, fetchLeaderboard, fetchPredictions]);
 
   useEffect(() => {
     if (!guestId) return;
