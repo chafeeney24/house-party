@@ -66,7 +66,7 @@ export const superBowlTemplate: TemplatePrediction[] = [
   {
     type: 'pick-one',
     question: '🏅 Super Bowl MVP',
-    options: ['Geno Smith', 'DK Metcalf', 'Drake Maye', 'Rhamondre Stevenson', 'Other Seahawks Player', 'Other Patriots Player', 'Defensive Player'],
+    options: ['Sam Darnold', 'Jaxon Smith-Njigba', 'Drake Maye', 'Rhamondre Stevenson', 'Other Seahawks Player', 'Other Patriots Player', 'Defensive Player'],
     points: 3,
   },
   {
