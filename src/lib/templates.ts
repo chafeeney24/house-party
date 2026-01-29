@@ -18,7 +18,7 @@ export const superBowlTemplate: TemplatePrediction[] = [
   {
     type: 'pick-one',
     question: '🏈 Which team will score FIRST?',
-    options: ['Chiefs', 'Eagles'],
+    options: ['Seahawks', 'Patriots'],
     points: 1,
   },
   {
@@ -30,7 +30,7 @@ export const superBowlTemplate: TemplatePrediction[] = [
   {
     type: 'pick-one',
     question: '🏆 Super Bowl Winner',
-    options: ['Chiefs', 'Eagles'],
+    options: ['Seahawks', 'Patriots'],
     points: 3,
   },
   {
@@ -66,7 +66,7 @@ export const superBowlTemplate: TemplatePrediction[] = [
   {
     type: 'pick-one',
     question: '🏅 Super Bowl MVP',
-    options: ['Patrick Mahomes', 'Travis Kelce', 'Jalen Hurts', 'Saquon Barkley', 'Other QB', 'Other Offensive Player', 'Defensive Player'],
+    options: ['Geno Smith', 'DK Metcalf', 'Drake Maye', 'Rhamondre Stevenson', 'Other Seahawks Player', 'Other Patriots Player', 'Defensive Player'],
     points: 3,
   },
   {
