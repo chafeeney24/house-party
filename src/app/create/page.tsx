@@ -28,13 +28,14 @@ export default function CreateParty() {
 
       const data = await res.json();
       
-      // Store host info in localStorage
-      localStorage.setItem('guestId', data.host.id);
-      localStorage.setItem('guestName', data.host.name);
-      localStorage.setItem('isHost', 'true');
+      // Store host info in localStorage (party-specific)
+      const partyCode = data.party.code;
+      localStorage.setItem(`guestId_${partyCode}`, data.host.id);
+      localStorage.setItem(`guestName_${partyCode}`, data.host.name);
+      localStorage.setItem(`isHost_${partyCode}`, 'true');
       
       // Redirect to host dashboard
-      router.push(`/party/${data.party.code}/host`);
+      router.push(`/party/${partyCode}/host`);
     } catch (err) {
       setError('Failed to create party. Please try again.');
       console.error(err);

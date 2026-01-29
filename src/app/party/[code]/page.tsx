@@ -19,7 +19,7 @@ interface PredictionMap {
 export default function PartyView() {
   const params = useParams();
   const router = useRouter();
-  const code = params.code as string;
+  const code = (params.code as string).toUpperCase();
   
   const [party, setParty] = useState<PartyData | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -28,6 +28,10 @@ export default function PartyView() {
   const [guestName, setGuestName] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard'>('predictions');
   const [submitting, setSubmitting] = useState<string | null>(null);
+  const [needsRejoin, setNeedsRejoin] = useState(false);
+  const [rejoinName, setRejoinName] = useState('');
+  const [rejoinError, setRejoinError] = useState('');
+  const [rejoinLoading, setRejoinLoading] = useState(false);
 
   const fetchParty = useCallback(async () => {
     try {
@@ -35,10 +39,12 @@ export default function PartyView() {
       if (res.ok) {
         const data = await res.json();
         setParty(data);
+        return data;
       }
     } catch (err) {
       console.error('Failed to fetch party:', err);
     }
+    return null;
   }, [code]);
 
   const fetchLeaderboard = useCallback(async () => {
@@ -54,36 +60,100 @@ export default function PartyView() {
   }, [code]);
 
   useEffect(() => {
-    // Get guest info from localStorage
-    const storedGuestId = localStorage.getItem('guestId');
-    const storedGuestName = localStorage.getItem('guestName');
-    const isHost = localStorage.getItem('isHost') === 'true';
+    const initSession = async () => {
+      // Get party-specific guest info from localStorage
+      const storedGuestId = localStorage.getItem(`guestId_${code}`);
+      const storedGuestName = localStorage.getItem(`guestName_${code}`);
+      const storedIsHost = localStorage.getItem(`isHost_${code}`) === 'true';
+      
+      // Fetch party first to validate
+      const partyData = await fetchParty();
+      
+      if (!partyData) {
+        // Party doesn't exist
+        router.push('/');
+        return;
+      }
+      
+      // If host, redirect to host view
+      if (storedIsHost && storedGuestId) {
+        router.push(`/party/${code}/host`);
+        return;
+      }
+      
+      // Validate that stored guestId exists in this party
+      if (storedGuestId) {
+        const guestExists = partyData.guests.some((g: { id: string }) => g.id === storedGuestId);
+        if (guestExists) {
+          setGuestId(storedGuestId);
+          setGuestName(storedGuestName);
+          fetchLeaderboard();
+          return;
+        }
+      }
+      
+      // No valid session - need to rejoin or join fresh
+      setNeedsRejoin(true);
+    };
     
-    if (!storedGuestId) {
-      router.push(`/join?code=${code}`);
-      return;
-    }
+    initSession();
+  }, [code, router, fetchParty, fetchLeaderboard]);
+
+  // Set up polling once we have a valid session
+  useEffect(() => {
+    if (!guestId) return;
     
-    // If host, redirect to host view
-    if (isHost) {
-      router.push(`/party/${code}/host`);
-      return;
-    }
-    
-    setGuestId(storedGuestId);
-    setGuestName(storedGuestName);
-    
-    fetchParty();
-    fetchLeaderboard();
-    
-    // Poll for updates every 5 seconds
     const interval = setInterval(() => {
       fetchParty();
       fetchLeaderboard();
     }, 5000);
     
     return () => clearInterval(interval);
-  }, [code, router, fetchParty, fetchLeaderboard]);
+  }, [guestId, fetchParty, fetchLeaderboard]);
+
+  const handleRejoin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setRejoinLoading(true);
+    setRejoinError('');
+    
+    try {
+      // Try to rejoin by name
+      const res = await fetch(`/api/party/${code}/rejoin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ guestName: rejoinName }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Store party-specific session
+        localStorage.setItem(`guestId_${code}`, data.guest.id);
+        localStorage.setItem(`guestName_${code}`, data.guest.name);
+        localStorage.setItem(`isHost_${code}`, data.guest.isHost ? 'true' : 'false');
+        
+        if (data.guest.isHost) {
+          router.push(`/party/${code}/host`);
+        } else {
+          setGuestId(data.guest.id);
+          setGuestName(data.guest.name);
+          setNeedsRejoin(false);
+          fetchLeaderboard();
+        }
+      } else {
+        // Name not found - redirect to join as new guest
+        router.push(`/join?code=${code}`);
+      }
+    } catch (err) {
+      console.error('Rejoin error:', err);
+      setRejoinError('Something went wrong. Please try again.');
+    } finally {
+      setRejoinLoading(false);
+    }
+  };
+
+  const handleJoinNew = () => {
+    router.push(`/join?code=${code}`);
+  };
 
   const submitPrediction = async (gameId: string, answer: string | number) => {
     if (!guestId) return;
@@ -109,7 +179,64 @@ export default function PartyView() {
     }
   };
 
-  if (!party) {
+  // Show rejoin form if needed
+  if (needsRejoin) {
+    return (
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8">
+            <h1 className="text-2xl font-bold text-white mb-2 text-center">
+              Welcome Back! 👋
+            </h1>
+            <p className="text-blue-200 text-center mb-6">
+              {party?.name || 'Loading...'}
+            </p>
+
+            <form onSubmit={handleRejoin} className="space-y-4">
+              <div>
+                <label className="block text-blue-200 mb-2 font-medium">
+                  What&apos;s your name?
+                </label>
+                <input
+                  type="text"
+                  placeholder="Enter the name you used before"
+                  value={rejoinName}
+                  onChange={(e) => setRejoinName(e.target.value)}
+                  className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  required
+                  autoFocus
+                />
+              </div>
+
+              {rejoinError && (
+                <p className="text-red-400 text-sm text-center">{rejoinError}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={rejoinLoading || !rejoinName}
+                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+              >
+                {rejoinLoading ? 'Finding you...' : 'Rejoin Party'}
+              </button>
+            </form>
+
+            <div className="mt-6 text-center">
+              <p className="text-blue-300 text-sm mb-2">First time here?</p>
+              <button
+                onClick={handleJoinNew}
+                className="text-white underline hover:text-blue-200"
+              >
+                Join as a new guest
+              </button>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!party || !guestId) {
     return (
       <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading party...</div>

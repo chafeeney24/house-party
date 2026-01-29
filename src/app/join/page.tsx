@@ -63,10 +63,10 @@ function JoinPartyForm() {
 
       const data = await res.json();
       
-      // Store guest info in localStorage
-      localStorage.setItem('guestId', data.guest.id);
-      localStorage.setItem('guestName', data.guest.name);
-      localStorage.setItem('isHost', 'false');
+      // Store guest info in localStorage (party-specific)
+      localStorage.setItem(`guestId_${code}`, data.guest.id);
+      localStorage.setItem(`guestName_${code}`, data.guest.name);
+      localStorage.setItem(`isHost_${code}`, 'false');
       
       // Redirect to party view
       router.push(`/party/${code}`);

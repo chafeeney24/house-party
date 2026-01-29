@@ -48,11 +48,11 @@ export default function HostDashboard() {
   }, [code]);
 
   useEffect(() => {
-    const storedGuestId = localStorage.getItem('guestId');
-    const isHost = localStorage.getItem('isHost') === 'true';
+    const storedGuestId = localStorage.getItem(`guestId_${code.toUpperCase()}`);
+    const isHost = localStorage.getItem(`isHost_${code.toUpperCase()}`) === 'true';
     
     if (!storedGuestId || !isHost) {
-      router.push(`/join?code=${code}`);
+      router.push(`/party/${code}`);
       return;
     }
     
