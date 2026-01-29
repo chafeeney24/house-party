@@ -263,6 +263,13 @@ function PredictionCard({
     prediction !== undefined ? String(prediction) : ''
   );
 
+  // Update local value when prediction prop changes (e.g., when loaded from API)
+  useEffect(() => {
+    if (prediction !== undefined) {
+      setLocalValue(String(prediction));
+    }
+  }, [prediction]);
+
   const isScored = game.isScored;
   const canSubmit = !isLocked && !isScored;
 
