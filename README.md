@@ -1,36 +1,72 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🎉 House Party
+
+Real-time prediction games for your parties! Perfect for Super Bowl parties, game nights, holidays, and more.
+
+## Features
+
+- **Jackbox-style join flow** - Guests join with a simple party code, no accounts needed
+- **Multiple game types:**
+  - **Pick One** - Multiple choice (coin toss, MVP pick, etc.)
+  - **Over/Under** - Guess if a value will be over or under
+  - **Exact Number** - Predict an exact value (score predictions)
+- **Real-time leaderboard** - Watch scores update as the host enters results
+- **Lock/unlock predictions** - Host can lock predictions when the game starts
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+# Install dependencies
+npm install
+
+# Run development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+
+# Build for production
+npm run build
+npm start
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## How It Works
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### For Hosts
+1. Go to the app and click "Host a Party"
+2. Enter a party name and your name
+3. Share the party code with guests
+4. Add prediction games (coin toss, prop bets, etc.)
+5. Lock predictions when the event starts
+6. Enter correct answers as results come in
+7. Watch the leaderboard update!
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+### For Guests
+1. Get the party code from the host
+2. Go to the app and enter the code
+3. Enter your name to join
+4. Make your predictions before they're locked
+5. Check the leaderboard to see how you're doing
 
-## Learn More
+## Super Bowl Game Ideas
 
-To learn more about Next.js, take a look at the following resources:
+- Coin toss (Heads/Tails)
+- Which team will score first?
+- First song at halftime show?
+- MVP prediction
+- Total points (Over/Under)
+- Final score prediction
+- Will there be a safety? (Yes/No)
+- Gatorade color on winning coach?
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Tech Stack
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- **Next.js 14** (App Router)
+- **TypeScript**
+- **Tailwind CSS**
+- **In-memory storage** (swap with Supabase/Planetscale for persistence)
 
-## Deploy on Vercel
+## TODO
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [ ] Add Supabase for persistent storage
+- [ ] WebSocket support for true real-time updates
+- [ ] Pre-built game templates (Super Bowl, Oscars, etc.)
+- [ ] QR code generation for party codes
+- [ ] Sound effects and animations
+- [ ] Multiple parties per host
