@@ -21,7 +21,7 @@ export default function HostDashboard() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [guestId, setGuestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'manage' | 'leaderboard'>('manage');
-  const [showAddGame, setShowAddGame] = useState(false);
+  const [showAddPrediction, setShowAddPrediction] = useState(false);
 
   const fetchParty = useCallback(async () => {
     try {
@@ -86,7 +86,7 @@ export default function HostDashboard() {
     }
   };
 
-  const addGame = async (gameData: { type: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number }) => {
+  const addPrediction = async (gameData: { type: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number }) => {
     try {
       const res = await fetch(`/api/party/${code}/games`, {
         method: 'POST',
@@ -96,14 +96,14 @@ export default function HostDashboard() {
       
       if (res.ok) {
         fetchParty();
-        setShowAddGame(false);
+        setShowAddPrediction(false);
       }
     } catch (err) {
-      console.error('Failed to add game:', err);
+      console.error('Failed to add prediction:', err);
     }
   };
 
-  const scoreGame = async (gameId: string, correctAnswer: string | number) => {
+  const scorePrediction = async (gameId: string, correctAnswer: string | number) => {
     if (!guestId) return;
     
     try {
@@ -121,20 +121,20 @@ export default function HostDashboard() {
         fetchLeaderboard();
       }
     } catch (err) {
-      console.error('Failed to score game:', err);
+      console.error('Failed to score prediction:', err);
     }
   };
 
   if (!party) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading party...</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-4 pb-24">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 pb-24">
       {/* Header */}
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
@@ -144,12 +144,12 @@ export default function HostDashboard() {
           </span>
           <button
             onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join?code=${party.code}`)}
-            className="text-purple-300 hover:text-white text-sm"
+            className="text-blue-300 hover:text-white text-sm"
           >
             📋 Copy Link
           </button>
         </div>
-        <p className="text-purple-300 mt-2">
+        <p className="text-blue-300 mt-2">
           {party.guests.length} player{party.guests.length !== 1 ? 's' : ''} joined
         </p>
       </div>
@@ -174,17 +174,17 @@ export default function HostDashboard() {
           onClick={() => setActiveTab('manage')}
           className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
             activeTab === 'manage'
-              ? 'bg-white text-purple-900'
+              ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
-          ⚙️ Manage Games
+          ⚙️ Manage Predictions
         </button>
         <button
           onClick={() => setActiveTab('leaderboard')}
           className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
             activeTab === 'leaderboard'
-              ? 'bg-white text-purple-900'
+              ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
@@ -195,27 +195,27 @@ export default function HostDashboard() {
       {/* Manage Tab */}
       {activeTab === 'manage' && (
         <div className="max-w-lg mx-auto space-y-4">
-          {/* Add Game Button */}
+          {/* Add Prediction Button */}
           <button
-            onClick={() => setShowAddGame(true)}
-            className="w-full bg-gradient-to-r from-pink-500 to-orange-500 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            onClick={() => setShowAddPrediction(true)}
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
           >
-            + Add Game
+            + Add Prediction
           </button>
 
-          {/* Games List */}
+          {/* Predictions List */}
           {party.games.map((game) => (
-            <HostGameCard
+            <HostPredictionCard
               key={game.id}
               game={game}
-              onScore={scoreGame}
+              onScore={scorePrediction}
             />
           ))}
 
           {party.games.length === 0 && (
             <div className="bg-white/10 rounded-xl p-8 text-center">
-              <p className="text-purple-200">
-                No games yet. Add your first prediction game!
+              <p className="text-blue-200">
+                No predictions yet. Add your first one!
               </p>
             </div>
           )}
@@ -227,7 +227,7 @@ export default function HostDashboard() {
         <div className="max-w-lg mx-auto">
           <div className="bg-white/10 backdrop-blur-lg rounded-xl overflow-hidden">
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-purple-200">
+              <div className="p-8 text-center text-blue-200">
                 No scores yet.
               </div>
             ) : (
@@ -245,7 +245,7 @@ export default function HostDashboard() {
                         {entry.guestName}
                       </span>
                     </div>
-                    <span className="text-xl font-bold text-purple-300">
+                    <span className="text-xl font-bold text-blue-300">
                       {entry.totalPoints} pts
                     </span>
                   </div>
@@ -256,19 +256,19 @@ export default function HostDashboard() {
         </div>
       )}
 
-      {/* Add Game Modal */}
-      {showAddGame && (
-        <AddGameModal
-          onClose={() => setShowAddGame(false)}
-          onAdd={addGame}
+      {/* Add Prediction Modal */}
+      {showAddPrediction && (
+        <AddPredictionModal
+          onClose={() => setShowAddPrediction(false)}
+          onAdd={addPrediction}
         />
       )}
     </main>
   );
 }
 
-// Host Game Card Component
-function HostGameCard({
+// Host Prediction Card Component
+function HostPredictionCard({
   game,
   onScore,
 }: {
@@ -281,7 +281,7 @@ function HostGameCard({
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-white font-semibold flex-1">{game.question}</h3>
-        <span className="text-purple-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+        <span className="text-blue-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
       </div>
 
       {game.isScored ? (
@@ -299,7 +299,7 @@ function HostGameCard({
                   onClick={() => setSelectedAnswer(option)}
                   className={`py-2 px-4 rounded-lg text-sm font-medium transition-all ${
                     selectedAnswer === option
-                      ? 'bg-pink-500 text-white'
+                      ? 'bg-blue-500 text-white'
                       : 'bg-white/20 text-white hover:bg-white/30'
                   }`}
                 >
@@ -315,7 +315,7 @@ function HostGameCard({
               type="number"
               value={selectedAnswer}
               onChange={(e) => setSelectedAnswer(e.target.value)}
-              className="w-full bg-white/20 text-white py-2 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="w-full bg-white/20 text-white py-2 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
               placeholder="Enter correct answer"
             />
           )}
@@ -329,7 +329,7 @@ function HostGameCard({
             disabled={!selectedAnswer}
             className="w-full bg-green-500 text-white py-2 rounded-lg font-semibold hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Score This Game
+            Score This Prediction
           </button>
         </div>
       )}
@@ -337,8 +337,8 @@ function HostGameCard({
   );
 }
 
-// Add Game Modal Component
-function AddGameModal({
+// Add Prediction Modal Component
+function AddPredictionModal({
   onClose,
   onAdd,
 }: {
@@ -371,22 +371,22 @@ function AddGameModal({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-      <div className="bg-purple-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+      <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border border-blue-500/30">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-white">Add New Game</h2>
-          <button onClick={onClose} className="text-purple-300 hover:text-white text-2xl">
+          <h2 className="text-xl font-bold text-white">Add New Prediction</h2>
+          <button onClick={onClose} className="text-blue-300 hover:text-white text-2xl">
             ×
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Game Type */}
+          {/* Prediction Type */}
           <div>
-            <label className="block text-purple-200 mb-2 text-sm">Game Type</label>
+            <label className="block text-blue-200 mb-2 text-sm">Prediction Type</label>
             <select
               value={type}
               onChange={(e) => setType(e.target.value as GameType)}
-              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="pick-one">Pick One (Multiple Choice)</option>
               <option value="over-under">Over/Under</option>
@@ -396,12 +396,12 @@ function AddGameModal({
 
           {/* Question */}
           <div>
-            <label className="block text-purple-200 mb-2 text-sm">Question</label>
+            <label className="block text-blue-200 mb-2 text-sm">Question</label>
             <input
               type="text"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
               placeholder="e.g., Who will win the coin toss?"
               required
             />
@@ -410,7 +410,7 @@ function AddGameModal({
           {/* Options for Pick One */}
           {type === 'pick-one' && (
             <div>
-              <label className="block text-purple-200 mb-2 text-sm">Options</label>
+              <label className="block text-blue-200 mb-2 text-sm">Options</label>
               {options.map((option, index) => (
                 <div key={index} className="flex gap-2 mb-2">
                   <input
@@ -421,7 +421,7 @@ function AddGameModal({
                       newOptions[index] = e.target.value;
                       setOptions(newOptions);
                     }}
-                    className="flex-1 bg-white/20 text-white py-2 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                    className="flex-1 bg-white/20 text-white py-2 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                     placeholder={`Option ${index + 1}`}
                   />
                   {options.length > 2 && (
@@ -438,7 +438,7 @@ function AddGameModal({
               <button
                 type="button"
                 onClick={() => setOptions([...options, ''])}
-                className="text-pink-400 hover:text-pink-300 text-sm"
+                className="text-blue-400 hover:text-blue-300 text-sm"
               >
                 + Add Option
               </button>
@@ -448,12 +448,12 @@ function AddGameModal({
           {/* Value for Over/Under */}
           {type === 'over-under' && (
             <div>
-              <label className="block text-purple-200 mb-2 text-sm">Over/Under Value</label>
+              <label className="block text-blue-200 mb-2 text-sm">Over/Under Value</label>
               <input
                 type="number"
                 value={overUnderValue}
                 onChange={(e) => setOverUnderValue(e.target.value)}
-                className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder="e.g., 48.5"
                 step="0.5"
                 required
@@ -463,12 +463,12 @@ function AddGameModal({
 
           {/* Points */}
           <div>
-            <label className="block text-purple-200 mb-2 text-sm">Points</label>
+            <label className="block text-blue-200 mb-2 text-sm">Points</label>
             <input
               type="number"
               value={points}
               onChange={(e) => setPoints(e.target.value)}
-              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
               min="1"
             />
           </div>
@@ -476,9 +476,9 @@ function AddGameModal({
           {/* Submit */}
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-pink-500 to-orange-500 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all"
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all"
           >
-            Add Game
+            Add Prediction
           </button>
         </form>
       </div>

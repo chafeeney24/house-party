@@ -8,12 +8,12 @@ export default function Home() {
   const [joinCode, setJoinCode] = useState('');
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex flex-col items-center justify-center p-4">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center p-4">
       <div className="text-center mb-12">
         <h1 className="text-6xl font-bold text-white mb-4">
           🎉 House Party
         </h1>
-        <p className="text-xl text-purple-200">
+        <p className="text-xl text-blue-200">
           Real-time predictions for your party games
         </p>
       </div>
@@ -38,13 +38,13 @@ export default function Home() {
               placeholder="Enter code"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-              className="flex-1 bg-white/20 text-white placeholder-white/50 font-mono text-xl text-center tracking-widest py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+              className="flex-1 bg-white/20 text-white placeholder-white/50 font-mono text-xl text-center tracking-widest py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
               maxLength={6}
             />
             <button
               onClick={() => joinCode && router.push(`/join?code=${joinCode}`)}
               disabled={!joinCode}
-              className="bg-white text-purple-900 font-bold py-3 px-6 rounded-lg hover:bg-purple-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="bg-white text-slate-900 font-bold py-3 px-6 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Join
             </button>
@@ -52,7 +52,7 @@ export default function Home() {
         </div>
       </div>
 
-      <footer className="absolute bottom-8 text-purple-300 text-sm">
+      <footer className="absolute bottom-8 text-blue-300 text-sm">
         Perfect for Super Bowl parties, game nights, and more!
       </footer>
     </main>

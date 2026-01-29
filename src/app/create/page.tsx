@@ -44,11 +44,11 @@ export default function CreateParty() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex flex-col items-center justify-center p-4">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <button
           onClick={() => router.push('/')}
-          className="text-purple-300 hover:text-white mb-8 flex items-center gap-2"
+          className="text-blue-300 hover:text-white mb-8 flex items-center gap-2"
         >
           ← Back
         </button>
@@ -60,7 +60,7 @@ export default function CreateParty() {
 
           <form onSubmit={handleCreate} className="space-y-6">
             <div>
-              <label className="block text-purple-200 mb-2 font-medium">
+              <label className="block text-blue-200 mb-2 font-medium">
                 Party Name
               </label>
               <input
@@ -68,13 +68,13 @@ export default function CreateParty() {
                 placeholder="Super Bowl LVIX Party"
                 value={partyName}
                 onChange={(e) => setPartyName(e.target.value)}
-                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 required
               />
             </div>
 
             <div>
-              <label className="block text-purple-200 mb-2 font-medium">
+              <label className="block text-blue-200 mb-2 font-medium">
                 Your Name
               </label>
               <input
@@ -82,7 +82,7 @@ export default function CreateParty() {
                 placeholder="Enter your name"
                 value={hostName}
                 onChange={(e) => setHostName(e.target.value)}
-                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 required
               />
             </div>

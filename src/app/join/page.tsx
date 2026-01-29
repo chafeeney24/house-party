@@ -78,11 +78,11 @@ function JoinPartyForm() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex flex-col items-center justify-center p-4">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         <button
           onClick={() => router.push('/')}
-          className="text-purple-300 hover:text-white mb-8 flex items-center gap-2"
+          className="text-blue-300 hover:text-white mb-8 flex items-center gap-2"
         >
           ← Back
         </button>
@@ -94,7 +94,7 @@ function JoinPartyForm() {
 
           <form onSubmit={handleJoin} className="space-y-6">
             <div>
-              <label className="block text-purple-200 mb-2 font-medium">
+              <label className="block text-blue-200 mb-2 font-medium">
                 Party Code
               </label>
               <input
@@ -102,7 +102,7 @@ function JoinPartyForm() {
                 placeholder="ABCDE"
                 value={code}
                 onChange={(e) => setCode(e.target.value.toUpperCase())}
-                className="w-full bg-white/20 text-white placeholder-white/50 font-mono text-xl text-center tracking-widest py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-white/20 text-white placeholder-white/50 font-mono text-xl text-center tracking-widest py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 maxLength={6}
                 required
               />
@@ -114,7 +114,7 @@ function JoinPartyForm() {
             </div>
 
             <div>
-              <label className="block text-purple-200 mb-2 font-medium">
+              <label className="block text-blue-200 mb-2 font-medium">
                 Your Name
               </label>
               <input
@@ -122,7 +122,7 @@ function JoinPartyForm() {
                 placeholder="Enter your name"
                 value={guestName}
                 onChange={(e) => setGuestName(e.target.value)}
-                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500"
+                className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 required
               />
             </div>
@@ -148,7 +148,7 @@ function JoinPartyForm() {
 export default function JoinParty() {
   return (
     <Suspense fallback={
-      <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading...</div>
       </main>
     }>

@@ -26,7 +26,7 @@ export default function PartyView() {
   const [predictions, setPredictions] = useState<PredictionMap>({});
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestName, setGuestName] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'games' | 'leaderboard'>('games');
+  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard'>('predictions');
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const fetchParty = useCallback(async () => {
@@ -111,18 +111,18 @@ export default function PartyView() {
 
   if (!party) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 flex items-center justify-center">
+      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
         <div className="text-white text-xl">Loading party...</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-purple-900 via-purple-800 to-indigo-900 p-4 pb-24">
+    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 pb-24">
       {/* Header */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
-        <p className="text-purple-300">
+        <p className="text-blue-300">
           Playing as <span className="font-semibold text-white">{guestName}</span>
         </p>
         {party.isLocked && (
@@ -135,20 +135,20 @@ export default function PartyView() {
       {/* Tab Navigation */}
       <div className="flex gap-2 mb-6 max-w-lg mx-auto">
         <button
-          onClick={() => setActiveTab('games')}
+          onClick={() => setActiveTab('predictions')}
           className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
-            activeTab === 'games'
-              ? 'bg-white text-purple-900'
+            activeTab === 'predictions'
+              ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
-          🎮 Games
+          🎯 Predictions
         </button>
         <button
           onClick={() => setActiveTab('leaderboard')}
           className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
             activeTab === 'leaderboard'
-              ? 'bg-white text-purple-900'
+              ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
@@ -156,18 +156,18 @@ export default function PartyView() {
         </button>
       </div>
 
-      {/* Games Tab */}
-      {activeTab === 'games' && (
+      {/* Predictions Tab */}
+      {activeTab === 'predictions' && (
         <div className="max-w-lg mx-auto space-y-4">
           {party.games.length === 0 ? (
             <div className="bg-white/10 rounded-xl p-8 text-center">
-              <p className="text-purple-200">
-                No games yet. Wait for the host to add some!
+              <p className="text-blue-200">
+                No predictions yet. Wait for the host to add some!
               </p>
             </div>
           ) : (
             party.games.map((game) => (
-              <GameCard
+              <PredictionCard
                 key={game.id}
                 game={game}
                 prediction={predictions[game.id]}
@@ -185,7 +185,7 @@ export default function PartyView() {
         <div className="max-w-lg mx-auto">
           <div className="bg-white/10 backdrop-blur-lg rounded-xl overflow-hidden">
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-purple-200">
+              <div className="p-8 text-center text-blue-200">
                 No scores yet. Make some predictions!
               </div>
             ) : (
@@ -206,7 +206,7 @@ export default function PartyView() {
                         {entry.guestId === guestId && ' (you)'}
                       </span>
                     </div>
-                    <span className="text-xl font-bold text-purple-300">
+                    <span className="text-xl font-bold text-blue-300">
                       {entry.totalPoints} pts
                     </span>
                   </div>
@@ -220,8 +220,8 @@ export default function PartyView() {
   );
 }
 
-// Game Card Component
-function GameCard({
+// Prediction Card Component
+function PredictionCard({
   game,
   prediction,
   isLocked,
@@ -245,7 +245,7 @@ function GameCard({
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-white font-semibold flex-1">{game.question}</h3>
-        <span className="text-purple-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+        <span className="text-blue-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
       </div>
 
       {/* Pick One */}
@@ -272,7 +272,7 @@ function GameCard({
                     : isWrong
                     ? 'bg-red-500 text-white'
                     : isSelected
-                    ? 'bg-pink-500 text-white'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 } ${!canSubmit ? 'cursor-not-allowed' : ''}`}
               >
@@ -307,7 +307,7 @@ function GameCard({
                     : isWrong
                     ? 'bg-red-500 text-white'
                     : isSelected
-                    ? 'bg-pink-500 text-white'
+                    ? 'bg-blue-500 text-white'
                     : 'bg-white/20 text-white hover:bg-white/30'
                 } ${!canSubmit ? 'cursor-not-allowed' : ''}`}
               >
@@ -326,13 +326,13 @@ function GameCard({
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             disabled={!canSubmit}
-            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-pink-500 disabled:opacity-50"
+            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
             placeholder="Enter your prediction"
           />
           <button
             onClick={() => onSubmit(Number(localValue))}
             disabled={!canSubmit || isSubmitting || !localValue}
-            className="bg-pink-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-pink-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-blue-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isSubmitting ? '...' : 'Submit'}
           </button>
