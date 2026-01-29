@@ -22,7 +22,7 @@ export default function Home() {
         {/* Host a Party */}
         <button
           onClick={() => router.push('/create')}
-          className="w-full bg-gradient-to-r from-pink-500 to-orange-500 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+          className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
         >
           🎤 Host a Party
         </button>
