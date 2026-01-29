@@ -23,6 +23,7 @@ export default function HostDashboard() {
   const [activeTab, setActiveTab] = useState<'manage' | 'leaderboard'>('manage');
   const [showAddPrediction, setShowAddPrediction] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
+  const [loadingTemplate, setLoadingTemplate] = useState(false);
 
   const fetchParty = useCallback(async () => {
     try {
@@ -150,6 +151,36 @@ export default function HostDashboard() {
     }
   };
 
+  const loadTemplate = async (templateName: string) => {
+    if (!guestId) return;
+    
+    if (!confirm(`This will add Super Bowl predictions to your party. Continue?`)) {
+      return;
+    }
+    
+    setLoadingTemplate(true);
+    try {
+      const res = await fetch(`/api/party/${code}/template`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-guest-id': guestId,
+        },
+        body: JSON.stringify({ template: templateName }),
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        alert(`Added ${data.added} predictions!`);
+        fetchParty();
+      }
+    } catch (err) {
+      console.error('Failed to load template:', err);
+    } finally {
+      setLoadingTemplate(false);
+    }
+  };
+
   const scorePrediction = async (gameId: string, correctAnswer: string | number) => {
     if (!guestId) return;
     
@@ -249,13 +280,22 @@ export default function HostDashboard() {
       {/* Manage Tab */}
       {activeTab === 'manage' && (
         <div className="max-w-lg mx-auto space-y-4">
-          {/* Add Prediction Button */}
-          <button
-            onClick={() => setShowAddPrediction(true)}
-            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-4 px-8 rounded-xl text-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
-          >
-            + Add Prediction
-          </button>
+          {/* Add Prediction Buttons */}
+          <div className="flex gap-3">
+            <button
+              onClick={() => setShowAddPrediction(true)}
+              className="flex-1 bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all"
+            >
+              + Add Prediction
+            </button>
+            <button
+              onClick={() => loadTemplate('super-bowl')}
+              disabled={loadingTemplate}
+              className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500 text-white font-bold py-4 px-4 rounded-xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all disabled:opacity-50"
+            >
+              {loadingTemplate ? 'Loading...' : '🏈 Super Bowl Template'}
+            </button>
+          </div>
 
           {/* Predictions List */}
           {party.games.map((game) => (
