@@ -199,6 +199,13 @@ export default function HostDashboard() {
         <p className="text-blue-300 mt-2">
           {party.guests.length} player{party.guests.length !== 1 ? 's' : ''} joined
         </p>
+        {/* Switch to Player View */}
+        <button
+          onClick={() => router.push(`/party/${code}/play`)}
+          className="mt-3 text-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors"
+        >
+          🎮 Switch to Player View
+        </button>
       </div>
 
       {/* Lock/Unlock */}
