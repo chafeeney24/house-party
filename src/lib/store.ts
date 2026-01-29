@@ -1,17 +1,11 @@
-// In-memory store for MVP
-// TODO: Replace with Supabase/Planetscale for persistence
+// Supabase-backed store for House Party
 
-import { Party, Game, Guest, Prediction } from '@/types';
-
-// In-memory storage
-const parties: Map<string, Party> = new Map();
-const games: Map<string, Game> = new Map();
-const guests: Map<string, Guest> = new Map();
-const predictions: Map<string, Prediction> = new Map();
+import { supabase, DbParty, DbGuest, DbGame, DbPrediction } from './supabase';
+import { Party, Game, Guest, Prediction, GameType } from '@/types';
 
 // Helper to generate short codes
 export function generateCode(): string {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed confusing chars
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
   let code = '';
   for (let i = 0; i < 5; i++) {
     code += chars.charAt(Math.floor(Math.random() * chars.length));
@@ -19,198 +13,376 @@ export function generateCode(): string {
   return code;
 }
 
-export function generateId(): string {
-  return crypto.randomUUID();
+// Transform database rows to app types
+function dbPartyToParty(dbParty: DbParty, games: Game[] = [], guests: Guest[] = []): Party {
+  return {
+    id: dbParty.id,
+    code: dbParty.code,
+    name: dbParty.name,
+    hostId: dbParty.host_id,
+    createdAt: new Date(dbParty.created_at),
+    isLocked: dbParty.is_locked,
+    games,
+    guests,
+  };
+}
+
+function dbGuestToGuest(dbGuest: DbGuest): Guest {
+  return {
+    id: dbGuest.id,
+    partyId: dbGuest.party_id,
+    name: dbGuest.name,
+    isHost: dbGuest.is_host,
+    joinedAt: new Date(dbGuest.joined_at),
+  };
+}
+
+function dbGameToGame(dbGame: DbGame): Game {
+  return {
+    id: dbGame.id,
+    partyId: dbGame.party_id,
+    type: dbGame.type as GameType,
+    question: dbGame.question,
+    options: dbGame.options as string[] | undefined,
+    overUnderValue: dbGame.over_under_value ?? undefined,
+    correctAnswer: dbGame.correct_answer ?? undefined,
+    points: dbGame.points,
+    isScored: dbGame.is_scored,
+    order: dbGame.order_num,
+  };
 }
 
 // Party operations
-export function createParty(name: string, hostName: string): { party: Party; host: Guest } {
-  const partyId = generateId();
-  const hostId = generateId();
+export async function createParty(name: string, hostName: string): Promise<{ party: Party; host: Guest } | null> {
   let code = generateCode();
   
-  // Ensure unique code
-  while (parties.has(code)) {
+  // Check for unique code
+  let attempts = 0;
+  while (attempts < 10) {
+    const { data: existing } = await supabase
+      .from('parties')
+      .select('code')
+      .eq('code', code)
+      .single();
+    
+    if (!existing) break;
     code = generateCode();
+    attempts++;
   }
-  
-  const host: Guest = {
-    id: hostId,
-    partyId,
-    name: hostName,
-    isHost: true,
-    joinedAt: new Date(),
-  };
-  
-  const party: Party = {
-    id: partyId,
-    code,
-    name,
-    hostId,
-    createdAt: new Date(),
-    isLocked: false,
-    games: [],
-    guests: [host],
-  };
-  
-  parties.set(code, party);
-  guests.set(hostId, host);
-  
+
+  // Create party first (without host_id, we'll update it)
+  const { data: partyData, error: partyError } = await supabase
+    .from('parties')
+    .insert({
+      code,
+      name,
+      host_id: '00000000-0000-0000-0000-000000000000', // Temporary, will update
+      is_locked: false,
+    })
+    .select()
+    .single();
+
+  if (partyError || !partyData) {
+    console.error('Error creating party:', partyError);
+    return null;
+  }
+
+  // Create host guest
+  const { data: hostData, error: hostError } = await supabase
+    .from('guests')
+    .insert({
+      party_id: partyData.id,
+      name: hostName,
+      is_host: true,
+    })
+    .select()
+    .single();
+
+  if (hostError || !hostData) {
+    console.error('Error creating host:', hostError);
+    return null;
+  }
+
+  // Update party with host_id
+  await supabase
+    .from('parties')
+    .update({ host_id: hostData.id })
+    .eq('id', partyData.id);
+
+  const host = dbGuestToGuest(hostData);
+  const party = dbPartyToParty({ ...partyData, host_id: hostData.id }, [], [host]);
+
   return { party, host };
 }
 
-export function getPartyByCode(code: string): Party | undefined {
-  return parties.get(code.toUpperCase());
+export async function getPartyByCode(code: string): Promise<Party | null> {
+  const { data: partyData, error: partyError } = await supabase
+    .from('parties')
+    .select('*')
+    .eq('code', code.toUpperCase())
+    .single();
+
+  if (partyError || !partyData) {
+    return null;
+  }
+
+  // Get guests
+  const { data: guestsData } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('party_id', partyData.id)
+    .order('joined_at', { ascending: true });
+
+  // Get games
+  const { data: gamesData } = await supabase
+    .from('games')
+    .select('*')
+    .eq('party_id', partyData.id)
+    .order('order_num', { ascending: true });
+
+  const guests = (guestsData || []).map(dbGuestToGuest);
+  const games = (gamesData || []).map(dbGameToGame);
+
+  return dbPartyToParty(partyData, games, guests);
 }
 
-export function lockParty(code: string): boolean {
-  const party = parties.get(code.toUpperCase());
-  if (party) {
-    party.isLocked = true;
-    return true;
-  }
-  return false;
+export async function lockParty(code: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('parties')
+    .update({ is_locked: true })
+    .eq('code', code.toUpperCase());
+
+  return !error;
 }
 
-export function unlockParty(code: string): boolean {
-  const party = parties.get(code.toUpperCase());
-  if (party) {
-    party.isLocked = false;
-    return true;
-  }
-  return false;
+export async function unlockParty(code: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('parties')
+    .update({ is_locked: false })
+    .eq('code', code.toUpperCase());
+
+  return !error;
 }
 
 // Guest operations
-export function joinParty(code: string, guestName: string): Guest | null {
-  const party = parties.get(code.toUpperCase());
+export async function joinParty(code: string, guestName: string): Promise<Guest | null> {
+  const party = await getPartyByCode(code);
   if (!party) return null;
-  
-  const guest: Guest = {
-    id: generateId(),
-    partyId: party.id,
-    name: guestName,
-    isHost: false,
-    joinedAt: new Date(),
-  };
-  
-  party.guests.push(guest);
-  guests.set(guest.id, guest);
-  
-  return guest;
+
+  const { data: guestData, error } = await supabase
+    .from('guests')
+    .insert({
+      party_id: party.id,
+      name: guestName,
+      is_host: false,
+    })
+    .select()
+    .single();
+
+  if (error || !guestData) {
+    console.error('Error joining party:', error);
+    return null;
+  }
+
+  return dbGuestToGuest(guestData);
 }
 
-export function getGuest(guestId: string): Guest | undefined {
-  return guests.get(guestId);
+export async function getGuest(guestId: string): Promise<Guest | null> {
+  const { data, error } = await supabase
+    .from('guests')
+    .select('*')
+    .eq('id', guestId)
+    .single();
+
+  if (error || !data) return null;
+  return dbGuestToGuest(data);
 }
 
 // Game operations
-export function addGame(code: string, game: Omit<Game, 'id' | 'partyId' | 'isScored' | 'order'>): Game | null {
-  const party = parties.get(code.toUpperCase());
+export async function addGame(
+  code: string,
+  game: { type: GameType; question: string; options?: string[]; overUnderValue?: number; points: number }
+): Promise<Game | null> {
+  const party = await getPartyByCode(code);
   if (!party) return null;
-  
-  const newGame: Game = {
-    ...game,
-    id: generateId(),
-    partyId: party.id,
-    isScored: false,
-    order: party.games.length,
-  };
-  
-  party.games.push(newGame);
-  games.set(newGame.id, newGame);
-  
-  return newGame;
+
+  // Get current game count for order
+  const { count } = await supabase
+    .from('games')
+    .select('*', { count: 'exact', head: true })
+    .eq('party_id', party.id);
+
+  const { data: gameData, error } = await supabase
+    .from('games')
+    .insert({
+      party_id: party.id,
+      type: game.type,
+      question: game.question,
+      options: game.options || null,
+      over_under_value: game.overUnderValue || null,
+      points: game.points,
+      is_scored: false,
+      order_num: count || 0,
+    })
+    .select()
+    .single();
+
+  if (error || !gameData) {
+    console.error('Error adding game:', error);
+    return null;
+  }
+
+  return dbGameToGame(gameData);
 }
 
-export function getGame(gameId: string): Game | undefined {
-  return games.get(gameId);
+export async function getGame(gameId: string): Promise<Game | null> {
+  const { data, error } = await supabase
+    .from('games')
+    .select('*')
+    .eq('id', gameId)
+    .single();
+
+  if (error || !data) return null;
+  return dbGameToGame(data);
 }
 
-export function scoreGame(gameId: string, correctAnswer: string | number): boolean {
-  const game = games.get(gameId);
+export async function scoreGame(gameId: string, correctAnswer: string | number): Promise<boolean> {
+  const game = await getGame(gameId);
   if (!game) return false;
-  
-  game.correctAnswer = correctAnswer;
-  game.isScored = true;
-  
-  // Calculate points for all predictions for this game
-  const gamePredictions = Array.from(predictions.values()).filter(p => p.gameId === gameId);
-  
-  for (const prediction of gamePredictions) {
+
+  // Update game with correct answer
+  const { error: gameError } = await supabase
+    .from('games')
+    .update({
+      correct_answer: String(correctAnswer),
+      is_scored: true,
+    })
+    .eq('id', gameId);
+
+  if (gameError) {
+    console.error('Error scoring game:', gameError);
+    return false;
+  }
+
+  // Get all predictions for this game
+  const { data: predictions } = await supabase
+    .from('predictions')
+    .select('*')
+    .eq('game_id', gameId);
+
+  if (!predictions) return true;
+
+  // Calculate points for each prediction
+  for (const prediction of predictions) {
+    let pointsAwarded = 0;
+    
     if (game.type === 'exact-number') {
-      // For exact number, closest wins (we'll handle ties later)
-      // For now, exact match = full points, otherwise 0
-      prediction.pointsAwarded = prediction.answer === correctAnswer ? game.points : 0;
+      // Exact match for exact-number (can improve to "closest" later)
+      pointsAwarded = prediction.answer === String(correctAnswer) ? game.points : 0;
     } else {
-      // For pick-one and over-under, exact match required
-      prediction.pointsAwarded = String(prediction.answer).toLowerCase() === String(correctAnswer).toLowerCase() 
-        ? game.points 
+      // Case-insensitive match for pick-one and over-under
+      pointsAwarded = prediction.answer.toLowerCase() === String(correctAnswer).toLowerCase()
+        ? game.points
         : 0;
     }
+
+    await supabase
+      .from('predictions')
+      .update({ points_awarded: pointsAwarded })
+      .eq('id', prediction.id);
   }
-  
+
   return true;
 }
 
 // Prediction operations
-export function submitPrediction(guestId: string, gameId: string, answer: string | number): Prediction | null {
-  const guest = guests.get(guestId);
-  const game = games.get(gameId);
-  
+export async function submitPrediction(
+  guestId: string,
+  gameId: string,
+  answer: string | number
+): Promise<Prediction | null> {
+  const guest = await getGuest(guestId);
+  const game = await getGame(gameId);
+
   if (!guest || !game) return null;
-  
-  // Check if already submitted
-  const existing = Array.from(predictions.values()).find(
-    p => p.guestId === guestId && p.gameId === gameId
-  );
-  
-  if (existing) {
-    // Update existing prediction
-    existing.answer = answer;
-    existing.submittedAt = new Date();
-    return existing;
+
+  // Upsert prediction (update if exists, insert if not)
+  const { data, error } = await supabase
+    .from('predictions')
+    .upsert(
+      {
+        guest_id: guestId,
+        game_id: gameId,
+        party_id: guest.partyId,
+        answer: String(answer),
+        submitted_at: new Date().toISOString(),
+      },
+      {
+        onConflict: 'guest_id,game_id',
+      }
+    )
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Error submitting prediction:', error);
+    return null;
   }
-  
-  const prediction: Prediction = {
-    id: generateId(),
-    guestId,
-    gameId,
-    partyId: guest.partyId,
-    answer,
-    submittedAt: new Date(),
+
+  return {
+    id: data.id,
+    guestId: data.guest_id,
+    gameId: data.game_id,
+    partyId: data.party_id,
+    answer: data.answer,
+    submittedAt: new Date(data.submitted_at),
+    pointsAwarded: data.points_awarded ?? undefined,
   };
-  
-  predictions.set(prediction.id, prediction);
-  
-  return prediction;
 }
 
-export function getPredictionsForGuest(guestId: string): Prediction[] {
-  return Array.from(predictions.values()).filter(p => p.guestId === guestId);
-}
+export async function getPredictionsForGuest(guestId: string): Promise<Prediction[]> {
+  const { data } = await supabase
+    .from('predictions')
+    .select('*')
+    .eq('guest_id', guestId);
 
-export function getPredictionsForGame(gameId: string): Prediction[] {
-  return Array.from(predictions.values()).filter(p => p.gameId === gameId);
+  return (data || []).map((p: DbPrediction) => ({
+    id: p.id,
+    guestId: p.guest_id,
+    gameId: p.game_id,
+    partyId: p.party_id,
+    answer: p.answer,
+    submittedAt: new Date(p.submitted_at),
+    pointsAwarded: p.points_awarded ?? undefined,
+  }));
 }
 
 // Leaderboard
-export function getLeaderboard(code: string): { guestId: string; guestName: string; totalPoints: number; gamesPlayed: number }[] {
-  const party = parties.get(code.toUpperCase());
+export async function getLeaderboard(code: string): Promise<{ guestId: string; guestName: string; totalPoints: number; gamesPlayed: number }[]> {
+  const party = await getPartyByCode(code);
   if (!party) return [];
-  
-  const leaderboard = party.guests.map(guest => {
-    const guestPredictions = Array.from(predictions.values()).filter(
-      p => p.guestId === guest.id && p.pointsAwarded !== undefined
-    );
-    
-    return {
-      guestId: guest.id,
-      guestName: guest.name,
-      totalPoints: guestPredictions.reduce((sum, p) => sum + (p.pointsAwarded || 0), 0),
-      gamesPlayed: guestPredictions.length,
-    };
-  });
-  
+
+  const leaderboard = await Promise.all(
+    party.guests.map(async (guest) => {
+      const { data: predictions } = await supabase
+        .from('predictions')
+        .select('points_awarded')
+        .eq('guest_id', guest.id)
+        .not('points_awarded', 'is', null);
+
+      const totalPoints = (predictions || []).reduce(
+        (sum, p) => sum + (p.points_awarded || 0),
+        0
+      );
+
+      return {
+        guestId: guest.id,
+        guestName: guest.name,
+        totalPoints,
+        gamesPlayed: (predictions || []).length,
+      };
+    })
+  );
+
   return leaderboard.sort((a, b) => b.totalPoints - a.totalPoints);
 }

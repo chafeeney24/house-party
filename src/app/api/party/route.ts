@@ -15,7 +15,16 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const { party, host } = createParty(body.name, body.hostName);
+    const result = await createParty(body.name, body.hostName);
+    
+    if (!result) {
+      return NextResponse.json(
+        { error: 'Failed to create party' },
+        { status: 500 }
+      );
+    }
+    
+    const { party, host } = result;
     
     return NextResponse.json({
       party: {

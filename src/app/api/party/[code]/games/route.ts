@@ -19,7 +19,7 @@ export async function POST(
       );
     }
     
-    const party = getPartyByCode(code);
+    const party = await getPartyByCode(code);
     
     if (!party) {
       return NextResponse.json(
@@ -28,7 +28,7 @@ export async function POST(
       );
     }
     
-    const game = addGame(code, {
+    const game = await addGame(code, {
       type: body.type,
       question: body.question,
       options: body.options,

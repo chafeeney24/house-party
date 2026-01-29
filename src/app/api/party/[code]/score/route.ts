@@ -20,7 +20,7 @@ export async function POST(
       );
     }
     
-    const party = getPartyByCode(code);
+    const party = await getPartyByCode(code);
     
     if (!party) {
       return NextResponse.json(
@@ -44,7 +44,7 @@ export async function POST(
       );
     }
     
-    const game = getGame(body.gameId);
+    const game = await getGame(body.gameId);
     
     if (!game || game.partyId !== party.id) {
       return NextResponse.json(
@@ -53,7 +53,7 @@ export async function POST(
       );
     }
     
-    const success = scoreGame(body.gameId, body.correctAnswer);
+    const success = await scoreGame(body.gameId, body.correctAnswer);
     
     if (!success) {
       return NextResponse.json(
@@ -63,11 +63,12 @@ export async function POST(
     }
     
     // Return updated leaderboard
-    const leaderboard = getLeaderboard(code);
+    const updatedGame = await getGame(body.gameId);
+    const leaderboard = await getLeaderboard(code);
     
     return NextResponse.json({
       success: true,
-      game: getGame(body.gameId),
+      game: updatedGame,
       leaderboard,
     });
   } catch (error) {

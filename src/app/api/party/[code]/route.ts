@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
-  const party = getPartyByCode(code);
+  const party = await getPartyByCode(code);
   
   if (!party) {
     return NextResponse.json(
@@ -39,12 +39,12 @@ export async function PATCH(
   const body = await request.json();
   
   if (body.isLocked === true) {
-    lockParty(code);
+    await lockParty(code);
   } else if (body.isLocked === false) {
-    unlockParty(code);
+    await unlockParty(code);
   }
   
-  const party = getPartyByCode(code);
+  const party = await getPartyByCode(code);
   
   if (!party) {
     return NextResponse.json(

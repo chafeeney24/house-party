@@ -8,7 +8,7 @@ export async function GET(
   { params }: { params: Promise<{ code: string }> }
 ) {
   const { code } = await params;
-  const party = getPartyByCode(code);
+  const party = await getPartyByCode(code);
   
   if (!party) {
     return NextResponse.json(
@@ -17,7 +17,7 @@ export async function GET(
     );
   }
   
-  const leaderboard = getLeaderboard(code);
+  const leaderboard = await getLeaderboard(code);
   
   return NextResponse.json({ leaderboard });
 }

@@ -27,7 +27,7 @@ export async function POST(
       );
     }
     
-    const party = getPartyByCode(code);
+    const party = await getPartyByCode(code);
     
     if (!party) {
       return NextResponse.json(
@@ -43,7 +43,7 @@ export async function POST(
       );
     }
     
-    const game = getGame(body.gameId);
+    const game = await getGame(body.gameId);
     
     if (!game || game.partyId !== party.id) {
       return NextResponse.json(
@@ -59,7 +59,7 @@ export async function POST(
       );
     }
     
-    const prediction = submitPrediction(guestId, body.gameId, body.answer);
+    const prediction = await submitPrediction(guestId, body.gameId, body.answer);
     
     if (!prediction) {
       return NextResponse.json(
