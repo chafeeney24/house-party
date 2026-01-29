@@ -22,6 +22,7 @@ export default function HostDashboard() {
   const [guestId, setGuestId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'manage' | 'leaderboard'>('manage');
   const [showAddPrediction, setShowAddPrediction] = useState(false);
+  const [editingGame, setEditingGame] = useState<Game | null>(null);
 
   const fetchParty = useCallback(async () => {
     try {
@@ -100,6 +101,52 @@ export default function HostDashboard() {
       }
     } catch (err) {
       console.error('Failed to add prediction:', err);
+    }
+  };
+
+  const updatePrediction = async (gameId: string, gameData: { question?: string; options?: string[]; overUnderValue?: number; points?: number }) => {
+    if (!guestId) return;
+    
+    try {
+      const res = await fetch(`/api/party/${code}/games/${gameId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-guest-id': guestId,
+        },
+        body: JSON.stringify(gameData),
+      });
+      
+      if (res.ok) {
+        fetchParty();
+        setEditingGame(null);
+      }
+    } catch (err) {
+      console.error('Failed to update prediction:', err);
+    }
+  };
+
+  const deletePrediction = async (gameId: string) => {
+    if (!guestId) return;
+    
+    if (!confirm('Are you sure you want to delete this prediction? All submitted answers will be lost.')) {
+      return;
+    }
+    
+    try {
+      const res = await fetch(`/api/party/${code}/games/${gameId}`, {
+        method: 'DELETE',
+        headers: {
+          'x-guest-id': guestId,
+        },
+      });
+      
+      if (res.ok) {
+        fetchParty();
+        fetchLeaderboard();
+      }
+    } catch (err) {
+      console.error('Failed to delete prediction:', err);
     }
   };
 
@@ -209,6 +256,8 @@ export default function HostDashboard() {
               key={game.id}
               game={game}
               onScore={scorePrediction}
+              onEdit={() => setEditingGame(game)}
+              onDelete={() => deletePrediction(game.id)}
             />
           ))}
 
@@ -258,9 +307,22 @@ export default function HostDashboard() {
 
       {/* Add Prediction Modal */}
       {showAddPrediction && (
-        <AddPredictionModal
+        <PredictionModal
           onClose={() => setShowAddPrediction(false)}
-          onAdd={addPrediction}
+          onSave={(data) => {
+            if (data.type) {
+              addPrediction(data as { type: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number });
+            }
+          }}
+        />
+      )}
+
+      {/* Edit Prediction Modal */}
+      {editingGame && (
+        <PredictionModal
+          game={editingGame}
+          onClose={() => setEditingGame(null)}
+          onSave={(data) => updatePrediction(editingGame.id, data)}
         />
       )}
     </main>
@@ -271,9 +333,13 @@ export default function HostDashboard() {
 function HostPredictionCard({
   game,
   onScore,
+  onEdit,
+  onDelete,
 }: {
   game: Game;
   onScore: (gameId: string, answer: string | number) => void;
+  onEdit: () => void;
+  onDelete: () => void;
 }) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
 
@@ -281,7 +347,27 @@ function HostPredictionCard({
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
       <div className="flex justify-between items-start mb-3">
         <h3 className="text-white font-semibold flex-1">{game.question}</h3>
-        <span className="text-blue-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+        <div className="flex items-center gap-2 ml-2">
+          <span className="text-blue-300 text-sm">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+          {!game.isScored && (
+            <>
+              <button
+                onClick={onEdit}
+                className="text-blue-400 hover:text-blue-300 p-1"
+                title="Edit"
+              >
+                ✏️
+              </button>
+              <button
+                onClick={onDelete}
+                className="text-red-400 hover:text-red-300 p-1"
+                title="Delete"
+              >
+                🗑️
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {game.isScored ? (
@@ -337,28 +423,35 @@ function HostPredictionCard({
   );
 }
 
-// Add Prediction Modal Component
-function AddPredictionModal({
+// Prediction Modal Component (Add/Edit)
+function PredictionModal({
+  game,
   onClose,
-  onAdd,
+  onSave,
 }: {
+  game?: Game;
   onClose: () => void;
-  onAdd: (gameData: { type: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number }) => void;
+  onSave: (gameData: { type?: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number }) => void;
 }) {
-  const [type, setType] = useState<GameType>('pick-one');
-  const [question, setQuestion] = useState('');
-  const [options, setOptions] = useState(['', '']);
-  const [overUnderValue, setOverUnderValue] = useState('');
-  const [points, setPoints] = useState('1');
+  const isEditing = !!game;
+  const [type, setType] = useState<GameType>(game?.type || 'pick-one');
+  const [question, setQuestion] = useState(game?.question || '');
+  const [options, setOptions] = useState<string[]>(game?.options || ['', '']);
+  const [overUnderValue, setOverUnderValue] = useState(game?.overUnderValue?.toString() || '');
+  const [points, setPoints] = useState(game?.points?.toString() || '1');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const gameData: { type: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number } = {
-      type,
+    const gameData: { type?: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number } = {
       question,
       points: Number(points) || 1,
     };
+
+    // Only include type for new games
+    if (!isEditing) {
+      gameData.type = type;
+    }
 
     if (type === 'pick-one') {
       gameData.options = options.filter(o => o.trim());
@@ -366,33 +459,37 @@ function AddPredictionModal({
       gameData.overUnderValue = Number(overUnderValue);
     }
 
-    onAdd(gameData);
+    onSave(gameData);
   };
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
       <div className="bg-slate-900 rounded-2xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border border-blue-500/30">
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold text-white">Add New Prediction</h2>
+          <h2 className="text-xl font-bold text-white">
+            {isEditing ? 'Edit Prediction' : 'Add New Prediction'}
+          </h2>
           <button onClick={onClose} className="text-blue-300 hover:text-white text-2xl">
             ×
           </button>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Prediction Type */}
-          <div>
-            <label className="block text-blue-200 mb-2 text-sm">Prediction Type</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value as GameType)}
-              className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
-            >
-              <option value="pick-one">Pick One (Multiple Choice)</option>
-              <option value="over-under">Over/Under</option>
-              <option value="exact-number">Exact Number</option>
-            </select>
-          </div>
+          {/* Prediction Type - only show for new */}
+          {!isEditing && (
+            <div>
+              <label className="block text-blue-200 mb-2 text-sm">Prediction Type</label>
+              <select
+                value={type}
+                onChange={(e) => setType(e.target.value as GameType)}
+                className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="pick-one">Pick One (Multiple Choice)</option>
+                <option value="over-under">Over/Under</option>
+                <option value="exact-number">Exact Number</option>
+              </select>
+            </div>
+          )}
 
           {/* Question */}
           <div>
@@ -456,7 +553,7 @@ function AddPredictionModal({
                 className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
                 placeholder="e.g., 48.5"
                 step="0.5"
-                required
+                required={type === 'over-under'}
               />
             </div>
           )}
@@ -478,7 +575,7 @@ function AddPredictionModal({
             type="submit"
             className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-3 rounded-xl hover:shadow-lg transition-all"
           >
-            Add Prediction
+            {isEditing ? 'Save Changes' : 'Add Prediction'}
           </button>
         </form>
       </div>

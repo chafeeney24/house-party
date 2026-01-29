@@ -246,6 +246,52 @@ export async function getGame(gameId: string): Promise<Game | null> {
   return dbGameToGame(data);
 }
 
+export async function updateGame(
+  gameId: string,
+  updates: { question?: string; options?: string[]; overUnderValue?: number; points?: number }
+): Promise<Game | null> {
+  const updateData: Record<string, unknown> = {};
+  
+  if (updates.question !== undefined) updateData.question = updates.question;
+  if (updates.options !== undefined) updateData.options = updates.options;
+  if (updates.overUnderValue !== undefined) updateData.over_under_value = updates.overUnderValue;
+  if (updates.points !== undefined) updateData.points = updates.points;
+
+  const { data, error } = await supabase
+    .from('games')
+    .update(updateData)
+    .eq('id', gameId)
+    .select()
+    .single();
+
+  if (error || !data) {
+    console.error('Error updating game:', error);
+    return null;
+  }
+
+  return dbGameToGame(data);
+}
+
+export async function deleteGame(gameId: string): Promise<boolean> {
+  // Delete associated predictions first (cascade should handle this, but being explicit)
+  await supabase
+    .from('predictions')
+    .delete()
+    .eq('game_id', gameId);
+
+  const { error } = await supabase
+    .from('games')
+    .delete()
+    .eq('id', gameId);
+
+  if (error) {
+    console.error('Error deleting game:', error);
+    return false;
+  }
+
+  return true;
+}
+
 export async function scoreGame(gameId: string, correctAnswer: string | number): Promise<boolean> {
   const game = await getGame(gameId);
   if (!game) return false;
