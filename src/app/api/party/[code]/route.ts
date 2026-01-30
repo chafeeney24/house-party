@@ -1,7 +1,7 @@
 // GET /api/party/[code] - Get party details
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getPartyByCode, lockParty, unlockParty } from '@/lib/store';
+import { getPartyByCode, lockParty, unlockParty, getCorrectPredictionsForParty } from '@/lib/store';
 
 export async function GET(
   request: NextRequest,
@@ -17,6 +17,9 @@ export async function GET(
     );
   }
   
+  // Get who answered correctly for each scored game
+  const correctPredictions = await getCorrectPredictionsForParty(code);
+  
   return NextResponse.json({
     code: party.code,
     name: party.name,
@@ -27,6 +30,7 @@ export async function GET(
       name: g.name,
       isHost: g.isHost,
     })),
+    correctPredictions,
   });
 }
 

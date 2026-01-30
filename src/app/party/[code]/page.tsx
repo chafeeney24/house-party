@@ -4,12 +4,18 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Game, LeaderboardEntry } from '@/types';
 
+interface CorrectPrediction {
+  guestId: string;
+  guestName: string;
+}
+
 interface PartyData {
   code: string;
   name: string;
   isLocked: boolean;
   games: Game[];
   guests: { id: string; name: string; isHost: boolean }[];
+  correctPredictions: Record<string, CorrectPrediction[]>;
 }
 
 interface PredictionMap {
@@ -317,6 +323,7 @@ export default function PartyView() {
                 isLocked={party.isLocked}
                 isSubmitting={submitting === game.id}
                 onSubmit={(answer) => submitPrediction(game.id, answer)}
+                correctPredictions={party.correctPredictions?.[game.id] || []}
               />
             ))
           )}
@@ -370,12 +377,14 @@ function PredictionCard({
   isLocked,
   isSubmitting,
   onSubmit,
+  correctPredictions,
 }: {
   game: Game;
   prediction?: string | number;
   isLocked: boolean;
   isSubmitting: boolean;
   onSubmit: (answer: string | number) => void;
+  correctPredictions: CorrectPrediction[];
 }) {
   const [localValue, setLocalValue] = useState<string>(
     prediction !== undefined ? String(prediction) : ''
@@ -391,6 +400,32 @@ function PredictionCard({
   const isScored = game.isScored;
   const canSubmit = !isLocked && !isScored;
 
+  // Helper to get button classes based on state
+  const getOptionClasses = (option: string) => {
+    const isSelected = localValue === option;
+    const isCorrectOption = isScored && String(game.correctAnswer).toLowerCase() === option.toLowerCase();
+    
+    if (isScored) {
+      if (isCorrectOption && isSelected) {
+        // User picked correctly: green fill
+        return 'bg-green-500 text-white';
+      } else if (isCorrectOption) {
+        // Correct answer but user didn't pick it: green border only
+        return 'border-2 border-green-500 bg-white/10 text-white';
+      } else if (isSelected) {
+        // User's wrong selection: red fill
+        return 'bg-red-500 text-white';
+      }
+      // Other options: neutral
+      return 'bg-white/10 text-white/50';
+    }
+    
+    // Not scored yet
+    return isSelected
+      ? 'bg-blue-500 text-white'
+      : 'bg-white/20 text-white hover:bg-white/30';
+  };
+
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
       <div className="flex justify-between items-start mb-3">
@@ -401,70 +436,42 @@ function PredictionCard({
       {/* Pick One */}
       {game.type === 'pick-one' && game.options && (
         <div className="grid grid-cols-2 gap-2">
-          {game.options.map((option) => {
-            const isSelected = localValue === option;
-            const isCorrect = isScored && game.correctAnswer === option;
-            const isWrong = isScored && isSelected && game.correctAnswer !== option;
-            
-            return (
-              <button
-                key={option}
-                onClick={() => {
-                  if (canSubmit) {
-                    setLocalValue(option);
-                    onSubmit(option);
-                  }
-                }}
-                disabled={!canSubmit || isSubmitting}
-                className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                  isCorrect
-                    ? 'bg-green-500 text-white'
-                    : isWrong
-                    ? 'bg-red-500 text-white'
-                    : isSelected
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/20 text-white hover:bg-white/30'
-                } ${!canSubmit ? 'cursor-not-allowed' : ''}`}
-              >
-                {option}
-              </button>
-            );
-          })}
+          {game.options.map((option) => (
+            <button
+              key={option}
+              onClick={() => {
+                if (canSubmit) {
+                  setLocalValue(option);
+                  onSubmit(option);
+                }
+              }}
+              disabled={!canSubmit || isSubmitting}
+              className={`py-3 px-4 rounded-lg font-medium transition-all ${getOptionClasses(option)} ${!canSubmit ? 'cursor-not-allowed' : ''}`}
+            >
+              {option}
+            </button>
+          ))}
         </div>
       )}
 
       {/* Over/Under */}
       {game.type === 'over-under' && (
         <div className="grid grid-cols-2 gap-2">
-          {['Over', 'Under'].map((choice) => {
-            const isSelected = localValue === choice;
-            const isCorrect = isScored && game.correctAnswer === choice;
-            const isWrong = isScored && isSelected && game.correctAnswer !== choice;
-            
-            return (
-              <button
-                key={choice}
-                onClick={() => {
-                  if (canSubmit) {
-                    setLocalValue(choice);
-                    onSubmit(choice);
-                  }
-                }}
-                disabled={!canSubmit || isSubmitting}
-                className={`py-3 px-4 rounded-lg font-medium transition-all ${
-                  isCorrect
-                    ? 'bg-green-500 text-white'
-                    : isWrong
-                    ? 'bg-red-500 text-white'
-                    : isSelected
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-white/20 text-white hover:bg-white/30'
-                } ${!canSubmit ? 'cursor-not-allowed' : ''}`}
-              >
-                {choice} {game.overUnderValue}
-              </button>
-            );
-          })}
+          {['Over', 'Under'].map((choice) => (
+            <button
+              key={choice}
+              onClick={() => {
+                if (canSubmit) {
+                  setLocalValue(choice);
+                  onSubmit(choice);
+                }
+              }}
+              disabled={!canSubmit || isSubmitting}
+              className={`py-3 px-4 rounded-lg font-medium transition-all ${getOptionClasses(choice)} ${!canSubmit ? 'cursor-not-allowed' : ''}`}
+            >
+              {choice} {game.overUnderValue}
+            </button>
+          ))}
         </div>
       )}
 
@@ -491,10 +498,26 @@ function PredictionCard({
 
       {/* Show result if scored */}
       {isScored && (
-        <div className="mt-3 text-sm">
-          <span className="text-green-400">
+        <div className="mt-3 flex items-center justify-between flex-wrap gap-2">
+          <span className="text-green-400 text-sm">
             ✓ Answer: {game.correctAnswer}
           </span>
+          
+          {/* Who got it right chips */}
+          {correctPredictions.length > 0 && (
+            <div className="flex items-center gap-1 flex-wrap">
+              <span className="text-white/50 text-xs mr-1">Got it:</span>
+              {correctPredictions.map((p) => (
+                <span
+                  key={p.guestId}
+                  title={p.guestName}
+                  className="bg-green-500/30 text-green-300 text-xs px-2 py-0.5 rounded-full cursor-default"
+                >
+                  {p.guestName.charAt(0).toUpperCase()}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

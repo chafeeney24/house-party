@@ -403,6 +403,43 @@ export async function getPredictionsForGuest(guestId: string): Promise<Predictio
   }));
 }
 
+// Get correct predictions for a game (who got it right)
+export async function getCorrectPredictionsForGame(gameId: string): Promise<{ guestId: string; guestName: string }[]> {
+  const { data: predictions } = await supabase
+    .from('predictions')
+    .select(`
+      guest_id,
+      points_awarded,
+      guests!inner(id, name)
+    `)
+    .eq('game_id', gameId)
+    .gt('points_awarded', 0);
+
+  if (!predictions) return [];
+
+  return predictions.map((p) => ({
+    guestId: p.guest_id,
+    guestName: (p.guests as unknown as { name: string }).name,
+  }));
+}
+
+// Get all correct predictions for a party (grouped by game)
+export async function getCorrectPredictionsForParty(code: string): Promise<Record<string, { guestId: string; guestName: string }[]>> {
+  const party = await getPartyByCode(code);
+  if (!party) return {};
+
+  const result: Record<string, { guestId: string; guestName: string }[]> = {};
+
+  // Only get correct predictions for scored games
+  const scoredGames = party.games.filter(g => g.isScored);
+  
+  for (const game of scoredGames) {
+    result[game.id] = await getCorrectPredictionsForGame(game.id);
+  }
+
+  return result;
+}
+
 // Leaderboard
 export async function getLeaderboard(code: string): Promise<{ guestId: string; guestName: string; totalPoints: number; gamesPlayed: number }[]> {
   const party = await getPartyByCode(code);
