@@ -128,8 +128,6 @@ export const superBowlTemplate: TemplatePrediction[] = [
       'Tití Me Preguntó',
       'BAILE INoLVIDABLE',
       'MONACO',
-      'LA MuDANZA',
-      'DtMF',
       'Other',
     ],
     points: 2,
@@ -137,61 +135,10 @@ export const superBowlTemplate: TemplatePrediction[] = [
   },
   {
     type: 'pick-one',
-    question: '🎤 Will Feid appear during halftime?',
+    question: '🎤 Will there be a surprise guest performer?',
     options: ['Yes', 'No'],
-    points: 1,
-    category: 'halftime',
-  },
-  {
-    type: 'pick-one',
-    question: '🎤 Will Ricky Martin appear during halftime?',
-    options: ['Yes', 'No'],
-    points: 1,
-    category: 'halftime',
-  },
-  {
-    type: 'pick-one',
-    question: '🎤 Will Cardi B appear during halftime?',
-    options: ['Yes', 'No'],
-    points: 1,
-    category: 'halftime',
-  },
-  {
-    type: 'pick-one',
-    question: '🎶 Will Bad Bunny perform "Me Porto Bonito"?',
-    options: ['Yes', 'No'],
-    points: 1,
-    category: 'halftime',
-  },
-  {
-    type: 'over-under',
-    question: '🎵 How many songs will Bad Bunny perform?',
-    overUnderValue: 8.5,
     points: 2,
     category: 'halftime',
-  },
-
-  // ===== COMMERCIALS =====
-  {
-    type: 'pick-one',
-    question: '📺 Which category will have the BEST commercial?',
-    options: ['Beer/Alcohol', 'Cars/Trucks', 'Food/Snacks', 'Tech/AI', 'Streaming/Movies', 'Insurance', 'Other'],
-    points: 1,
-    category: 'commercials',
-  },
-  {
-    type: 'pick-one',
-    question: '🎬 Will there be a movie trailer that makes you say "I NEED to see that"?',
-    options: ['Yes', 'No'],
-    points: 1,
-    category: 'commercials',
-  },
-  {
-    type: 'pick-one',
-    question: '🤖 Will an AI company have a Super Bowl ad?',
-    options: ['Yes', 'No'],
-    points: 1,
-    category: 'commercials',
   },
 
   // ===== EXACT NUMBER (Tiebreakers) =====
@@ -242,8 +189,8 @@ export const superBowlQuickTemplate: TemplatePrediction[] = [
   },
   {
     type: 'pick-one',
-    question: '🎤 Bad Bunny\'s FIRST song',
-    options: ['Tití Me Preguntó', 'BAILE INoLVIDABLE', 'Other'],
+    question: '🎤 Will there be a surprise guest at halftime?',
+    options: ['Yes', 'No'],
     points: 2,
   },
   {
