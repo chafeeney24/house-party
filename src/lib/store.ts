@@ -319,23 +319,38 @@ export async function scoreGame(gameId: string, correctAnswer: string | number):
   if (!predictions) return true;
 
   // Calculate points for each prediction
-  for (const prediction of predictions) {
-    let pointsAwarded = 0;
+  if (game.type === 'exact-number') {
+    // For exact-number: closest guess(es) win full points
+    const correctNum = Number(correctAnswer);
+    const guesses = predictions.map(p => ({
+      id: p.id,
+      guess: Number(p.answer),
+      distance: Math.abs(Number(p.answer) - correctNum),
+    }));
     
-    if (game.type === 'exact-number') {
-      // Exact match for exact-number (can improve to "closest" later)
-      pointsAwarded = prediction.answer === String(correctAnswer) ? game.points : 0;
-    } else {
-      // Case-insensitive match for pick-one and over-under
-      pointsAwarded = prediction.answer.toLowerCase() === String(correctAnswer).toLowerCase()
+    // Find the minimum distance (closest guess)
+    const minDistance = Math.min(...guesses.map(g => g.distance));
+    
+    // Award points to all who had the closest guess
+    for (const guess of guesses) {
+      const pointsAwarded = guess.distance === minDistance ? game.points : 0;
+      await supabase
+        .from('predictions')
+        .update({ points_awarded: pointsAwarded })
+        .eq('id', guess.id);
+    }
+  } else {
+    // For pick-one and over-under: case-insensitive match
+    for (const prediction of predictions) {
+      const pointsAwarded = prediction.answer.toLowerCase() === String(correctAnswer).toLowerCase()
         ? game.points
         : 0;
-    }
 
-    await supabase
-      .from('predictions')
-      .update({ points_awarded: pointsAwarded })
-      .eq('id', prediction.id);
+      await supabase
+        .from('predictions')
+        .update({ points_awarded: pointsAwarded })
+        .eq('id', prediction.id);
+    }
   }
 
   return true;
