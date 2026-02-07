@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Game, GameType, LeaderboardEntry } from '@/types';
+import QRCodeDisplay from '@/components/QRCodeDisplay';
 
 interface PartyData {
   code: string;
@@ -216,17 +217,23 @@ export default function HostDashboard() {
       {/* Header */}
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
-        <div className="flex items-center justify-center gap-2 mt-2">
-          <span className="bg-white/20 text-white font-mono text-lg px-4 py-1 rounded-lg tracking-widest">
-            {party.code}
-          </span>
-          <button
-            onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join?code=${party.code}`)}
-            className="text-blue-300 hover:text-white text-sm"
-          >
-            📋 Copy Link
-          </button>
+        
+        {/* Party Code + QR Code */}
+        <div className="flex items-center justify-center gap-4 mt-3">
+          <div className="flex flex-col items-center">
+            <span className="bg-white/20 text-white font-mono text-lg px-4 py-1 rounded-lg tracking-widest">
+              {party.code}
+            </span>
+            <button
+              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join?code=${party.code}`)}
+              className="text-blue-300 hover:text-white text-sm mt-1"
+            >
+              📋 Copy Link
+            </button>
+          </div>
+          <QRCodeDisplay partyCode={party.code} />
         </div>
+        
         <p className="text-blue-300 mt-2">
           {party.guests.length} player{party.guests.length !== 1 ? 's' : ''} joined
         </p>
