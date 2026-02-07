@@ -299,39 +299,31 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
       <div className="overflow-x-auto">
         <div className="inline-block min-w-full">
           {/* Team Home Header */}
-          <div className="flex mb-1">
-            <div className="w-12 h-8" /> {/* Corner spacer */}
-            <div className="flex-1 text-center text-white font-bold text-sm truncate px-1">
-              ← {grid.teamHome}
-            </div>
+          <div className="text-center text-white font-bold text-sm mb-2 ml-10">
+            {grid.teamHome} →
           </div>
 
           {/* Numbers Row (if drawn) */}
           <div className="flex">
-            <div className="w-12 h-8" /> {/* Corner spacer */}
+            <div className="w-10 h-8" /> {/* Corner spacer */}
             {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => (
               <div
                 key={`header-${col}`}
-                className="flex-1 h-8 flex items-center justify-center text-white font-bold text-xs bg-blue-800/50 border border-blue-700/50"
+                className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-blue-800/50 border border-blue-700/50"
               >
                 {grid.numbersDrawn && grid.homeNumbers ? grid.homeNumbers[col] : '?'}
               </div>
             ))}
           </div>
 
-          {/* Grid Rows */}
+          {/* Grid Rows with Away Team Sidebar */}
           <div className="flex">
-            {/* Team Away Sidebar */}
-            <div className="w-12 flex flex-col">
-              <div className="h-8 flex items-center justify-center">
-                <span className="text-white font-bold text-xs transform -rotate-90 whitespace-nowrap">
-                  {grid.teamAway} ↓
-                </span>
-              </div>
+            {/* Team Away Numbers Column */}
+            <div className="w-10 flex flex-col">
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
                 <div
                   key={`sidebar-${row}`}
-                  className="h-10 flex items-center justify-center text-white font-bold text-xs bg-green-800/50 border border-green-700/50"
+                  className="h-8 flex items-center justify-center text-white font-bold text-xs bg-green-800/50 border border-green-700/50"
                 >
                   {grid.numbersDrawn && grid.awayNumbers ? grid.awayNumbers[row] : '?'}
                 </div>
@@ -339,7 +331,7 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
             </div>
 
             {/* Squares Grid */}
-            <div className="flex-1">
+            <div>
               {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
                 <div key={`row-${row}`} className="flex">
                   {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => {
@@ -359,7 +351,7 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
                         }}
                         disabled={grid.numbersDrawn || (claim && !isMine)}
                         className={`
-                          flex-1 h-10 flex items-center justify-center text-xs font-bold
+                          w-8 h-8 flex items-center justify-center text-xs font-bold
                           border border-white/20 transition-all relative
                           ${winLabel ? 'bg-yellow-400 text-black ring-2 ring-yellow-300' : ''}
                           ${!winLabel && claim && isMine ? 'bg-green-500 text-white' : ''}
@@ -381,6 +373,11 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
                 </div>
               ))}
             </div>
+          </div>
+          
+          {/* Team Away Label */}
+          <div className="text-center text-white font-bold text-sm mt-2 ml-10">
+            ↑ {grid.teamAway}
           </div>
         </div>
       </div>
