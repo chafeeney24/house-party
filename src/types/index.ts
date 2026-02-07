@@ -78,3 +78,42 @@ export interface ScoreGameRequest {
   gameId: string;
   correctAnswer: string | number;
 }
+
+// Super Bowl Squares types
+export interface SquaresGrid {
+  id: string;
+  partyId: string;
+  teamHome: string;
+  teamAway: string;
+  numbersDrawn: boolean;
+  homeNumbers: number[] | null;  // 0-9 shuffled for columns
+  awayNumbers: number[] | null;  // 0-9 shuffled for rows
+  q1ScoreHome: number | null;
+  q1ScoreAway: number | null;
+  q2ScoreHome: number | null;
+  q2ScoreAway: number | null;
+  q3ScoreHome: number | null;
+  q3ScoreAway: number | null;
+  finalScoreHome: number | null;
+  finalScoreAway: number | null;
+  claims: SquareClaim[];
+}
+
+export interface SquareClaim {
+  id: string;
+  gridId: string;
+  guestId: string;
+  guestName?: string;
+  rowIndex: number;
+  colIndex: number;
+}
+
+export type Quarter = 'q1' | 'q2' | 'q3' | 'final';
+
+export interface SquaresWinner {
+  quarter: Quarter;
+  rowIndex: number;
+  colIndex: number;
+  guestId: string | null;
+  guestName: string | null;
+}

@@ -46,3 +46,31 @@ export interface DbPrediction {
   points_awarded: number | null;
   submitted_at: string;
 }
+
+export interface DbSquaresGrid {
+  id: string;
+  party_id: string;
+  team_home: string;
+  team_away: string;
+  numbers_drawn: boolean;
+  home_numbers: number[] | null;
+  away_numbers: number[] | null;
+  q1_score_home: number | null;
+  q1_score_away: number | null;
+  q2_score_home: number | null;
+  q2_score_away: number | null;
+  q3_score_home: number | null;
+  q3_score_away: number | null;
+  final_score_home: number | null;
+  final_score_away: number | null;
+  created_at: string;
+}
+
+export interface DbSquaresClaim {
+  id: string;
+  grid_id: string;
+  guest_id: string;
+  row_index: number;
+  col_index: number;
+  claimed_at: string;
+}

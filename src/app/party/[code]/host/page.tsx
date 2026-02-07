@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Game, GameType, LeaderboardEntry } from '@/types';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
+import SquaresGrid from '@/components/SquaresGrid';
 
 interface PartyData {
   code: string;
@@ -21,7 +22,7 @@ export default function HostDashboard() {
   const [party, setParty] = useState<PartyData | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [guestId, setGuestId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'manage' | 'leaderboard'>('manage');
+  const [activeTab, setActiveTab] = useState<'manage' | 'leaderboard' | 'squares'>('manage');
   const [showAddPrediction, setShowAddPrediction] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
@@ -264,17 +265,27 @@ export default function HostDashboard() {
       <div className="flex gap-2 mb-6 max-w-lg mx-auto">
         <button
           onClick={() => setActiveTab('manage')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'manage'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
           }`}
         >
-          ⚙️ Manage Predictions
+          ⚙️ Predictions
+        </button>
+        <button
+          onClick={() => setActiveTab('squares')}
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
+            activeTab === 'squares'
+              ? 'bg-white text-slate-900'
+              : 'bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          🏈 Squares
         </button>
         <button
           onClick={() => setActiveTab('leaderboard')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'leaderboard'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
@@ -323,6 +334,11 @@ export default function HostDashboard() {
             </div>
           )}
         </div>
+      )}
+
+      {/* Squares Tab */}
+      {activeTab === 'squares' && guestId && (
+        <SquaresGrid partyCode={code} guestId={guestId} isHost={true} />
       )}
 
       {/* Leaderboard Tab */}

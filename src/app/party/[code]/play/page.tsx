@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Game, LeaderboardEntry } from '@/types';
+import SquaresGrid from '@/components/SquaresGrid';
 
 interface CorrectPrediction {
   guestId: string;
@@ -32,7 +33,7 @@ export default function HostPlayView() {
   const [predictions, setPredictions] = useState<PredictionMap>({});
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestName, setGuestName] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard'>('predictions');
+  const [activeTab, setActiveTab] = useState<'predictions' | 'squares' | 'leaderboard'>('predictions');
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const fetchParty = useCallback(async () => {
@@ -167,7 +168,7 @@ export default function HostPlayView() {
       <div className="flex gap-2 mb-6 max-w-lg mx-auto">
         <button
           onClick={() => setActiveTab('predictions')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'predictions'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
@@ -176,8 +177,18 @@ export default function HostPlayView() {
           🎯 Predictions
         </button>
         <button
+          onClick={() => setActiveTab('squares')}
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
+            activeTab === 'squares'
+              ? 'bg-white text-slate-900'
+              : 'bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          🏈 Squares
+        </button>
+        <button
           onClick={() => setActiveTab('leaderboard')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'leaderboard'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
@@ -210,6 +221,11 @@ export default function HostPlayView() {
             ))
           )}
         </div>
+      )}
+
+      {/* Squares Tab */}
+      {activeTab === 'squares' && guestId && (
+        <SquaresGrid partyCode={code} guestId={guestId} isHost={false} />
       )}
 
       {/* Leaderboard Tab */}
