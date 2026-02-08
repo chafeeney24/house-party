@@ -65,13 +65,6 @@ export const superBowlTemplate: TemplatePrediction[] = [
 
   // ===== HALFTIME SHOW =====
   {
-    type: 'pick-one',
-    question: '🎤 Will Cardi B make a guest appearance during Bad Bunny\'s halftime show?\nShe\'s the betting favorite at -250 — she has a hit with Bad Bunny AND her boyfriend Stefon Diggs is playing',
-    options: ['Yes', 'No'],
-    points: 2,
-    category: 'halftime',
-  },
-  {
     type: 'over-under',
     question: '🎤 Total guest performers on stage with Bad Bunny?\nOver/Under 2.5 — halftime shows love surprise guests',
     overUnderValue: 2.5,
