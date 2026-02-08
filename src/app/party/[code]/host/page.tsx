@@ -11,7 +11,7 @@ interface PartyData {
   name: string;
   isLocked: boolean;
   games: Game[];
-  guests: { id: string; name: string; isHost: boolean }[];
+  guests: { id: string; name: string; isHost: boolean; wantsSquares: boolean }[];
 }
 
 export default function HostDashboardPage() {
@@ -254,6 +254,36 @@ function HostDashboard() {
       }
     } catch (err) {
       console.error('Failed to remove guest:', err);
+    }
+  };
+
+  const toggleSquaresOptIn = async (targetGuestId: string, currentValue: boolean) => {
+    if (!guestId || !party) return;
+
+    // Optimistic update
+    setParty({
+      ...party,
+      guests: party.guests.map(g =>
+        g.id === targetGuestId ? { ...g, wantsSquares: !currentValue } : g
+      ),
+    });
+
+    try {
+      const res = await fetch(`/api/party/${code}/guests/${targetGuestId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-guest-id': guestId,
+        },
+        body: JSON.stringify({ wantsSquares: !currentValue }),
+      });
+
+      if (!res.ok) {
+        fetchParty(); // Revert on failure
+      }
+    } catch (err) {
+      console.error('Failed to toggle squares opt-in:', err);
+      fetchParty();
     }
   };
 
@@ -505,11 +535,16 @@ function HostDashboard() {
         <div className="max-w-lg mx-auto space-y-3">
           <div className="bg-white/10 backdrop-blur-lg rounded-xl overflow-hidden">
             <div className="p-4 border-b border-white/10">
-              <h3 className="text-white font-semibold">
-                {party.guests.length} Guest{party.guests.length !== 1 ? 's' : ''}
-              </h3>
+              <div className="flex items-center justify-between">
+                <h3 className="text-white font-semibold">
+                  {party.guests.length} Guest{party.guests.length !== 1 ? 's' : ''}
+                </h3>
+                <span className="text-emerald-400 text-sm font-medium">
+                  🏈 {party.guests.filter(g => g.wantsSquares).length}/{party.guests.length} playing squares
+                </span>
+              </div>
               <p className="text-white/40 text-sm mt-1">
-                Remove duplicate or accidental entries
+                Manage guests and squares opt-in
               </p>
             </div>
             <div className="divide-y divide-white/10">
@@ -531,14 +566,27 @@ function HostDashboard() {
                       )}
                     </div>
                   </div>
-                  {!guest.isHost && (
+                  <div className="flex items-center gap-2">
                     <button
-                      onClick={() => removeGuest(guest.id, guest.name)}
-                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                      onClick={() => toggleSquaresOptIn(guest.id, guest.wantsSquares)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        guest.wantsSquares
+                          ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                          : 'bg-white/5 text-white/40 border border-white/10 hover:border-white/20'
+                      }`}
+                      title={guest.wantsSquares ? 'Opted in to squares' : 'Not in squares'}
                     >
-                      Remove
+                      {guest.wantsSquares ? '🏈 In' : '🏈 Out'}
                     </button>
-                  )}
+                    {!guest.isHost && (
+                      <button
+                        onClick={() => removeGuest(guest.id, guest.name)}
+                        className="text-red-400 hover:text-red-300 hover:bg-red-500/10 px-3 py-1.5 rounded-lg transition-colors text-sm font-medium"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
                 </div>
               ))}
             </div>

@@ -316,14 +316,15 @@ export async function PATCH(
       return NextResponse.json({ error: 'Squares already assigned' }, { status: 400 });
     }
 
-    // Get all guests in this party
+    // Get guests who opted in to squares
     const { data: guests } = await supabase
       .from('guests')
       .select('id')
-      .eq('party_id', party.id);
+      .eq('party_id', party.id)
+      .eq('wants_squares', true);
 
     if (!guests || guests.length === 0) {
-      return NextResponse.json({ error: 'No guests to assign' }, { status: 400 });
+      return NextResponse.json({ error: 'No guests opted in to squares' }, { status: 400 });
     }
 
     // Clear any existing manual claims

@@ -7,6 +7,7 @@ interface SquaresGridProps {
   partyCode: string;
   guestId: string;
   isHost: boolean;
+  wantsSquares?: boolean;
 }
 
 interface WinningSquare {
@@ -43,7 +44,7 @@ const GUEST_COLORS = [
   { bg: 'bg-violet-500', text: 'text-white', hex: '#8b5cf6' },
 ];
 
-export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridProps) {
+export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }: SquaresGridProps) {
   const [grid, setGrid] = useState<SquaresGridType | null>(null);
   const [loading, setLoading] = useState(true);
   const [showScoreModal, setShowScoreModal] = useState<Quarter | null>(null);
@@ -254,12 +255,23 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
           <div className="text-4xl mb-3">🏈</div>
           <h3 className="text-lg font-bold text-white mb-2">Super Bowl Squares</h3>
           <p className="text-white/60 text-sm">
-            Squares will be randomly assigned to all players when the host locks predictions.
+            Squares will be randomly assigned to opted-in players when the host locks predictions.
           </p>
           {grid && (
             <p className="text-orange-300 text-sm mt-3">
               {grid.teamAway} vs {grid.teamHome}
             </p>
+          )}
+          {!isHost && wantsSquares !== undefined && (
+            <div className={`mt-4 py-2 px-4 rounded-lg text-sm font-medium inline-block ${
+              wantsSquares
+                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-300'
+                : 'bg-white/5 border border-white/10 text-white/50'
+            }`}>
+              {wantsSquares
+                ? "✅ You're in! ($10 buy-in)"
+                : "You haven't opted in — ask the host to add you"}
+            </div>
           )}
         </div>
       </div>

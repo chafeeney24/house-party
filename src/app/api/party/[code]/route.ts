@@ -30,6 +30,7 @@ export async function GET(
       id: g.id,
       name: g.name,
       isHost: g.isHost,
+      wantsSquares: g.wantsSquares,
     })),
     correctPredictions,
   });
@@ -76,11 +77,12 @@ export async function PATCH(
         }
 
         if (grid && !grid.numbers_drawn) {
-          // Get all guests
+          // Get guests who opted in to squares
           const { data: guests } = await supabase
             .from('guests')
-            .select('id')
-            .eq('party_id', partyData.id);
+            .select('id, wants_squares')
+            .eq('party_id', partyData.id)
+            .eq('wants_squares', true);
 
           if (guests && guests.length > 0) {
             // Clear any existing claims

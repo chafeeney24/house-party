@@ -28,7 +28,7 @@ export async function POST(
       );
     }
     
-    const guest = await joinParty(code, body.guestName);
+    const guest = await joinParty(code, body.guestName, body.wantsSquares || false);
     
     if (!guest) {
       return NextResponse.json(

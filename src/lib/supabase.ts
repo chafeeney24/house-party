@@ -20,6 +20,7 @@ export interface DbGuest {
   party_id: string;
   name: string;
   is_host: boolean;
+  wants_squares: boolean;
   joined_at: string;
 }
 

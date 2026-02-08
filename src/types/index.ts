@@ -31,6 +31,7 @@ export interface Guest {
   partyId: string;
   name: string;
   isHost: boolean;
+  wantsSquares: boolean;
   joinedAt: Date;
 }
 
@@ -59,6 +60,7 @@ export interface CreatePartyRequest {
 
 export interface JoinPartyRequest {
   guestName: string;
+  wantsSquares?: boolean;
 }
 
 export interface AddGameRequest {

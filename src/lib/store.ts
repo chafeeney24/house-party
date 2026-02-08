@@ -33,6 +33,7 @@ function dbGuestToGuest(dbGuest: DbGuest): Guest {
     partyId: dbGuest.party_id,
     name: dbGuest.name,
     isHost: dbGuest.is_host,
+    wantsSquares: dbGuest.wants_squares,
     joinedAt: new Date(dbGuest.joined_at),
   };
 }
@@ -87,13 +88,14 @@ export async function createParty(name: string, hostName: string): Promise<{ par
     return null;
   }
 
-  // Create host guest
+  // Create host guest (host auto-opts in to squares)
   const { data: hostData, error: hostError } = await supabase
     .from('guests')
     .insert({
       party_id: partyData.id,
       name: hostName,
       is_host: true,
+      wants_squares: true,
     })
     .select()
     .single();
@@ -165,7 +167,7 @@ export async function unlockParty(code: string): Promise<boolean> {
 }
 
 // Guest operations
-export async function joinParty(code: string, guestName: string): Promise<Guest | null> {
+export async function joinParty(code: string, guestName: string, wantsSquares: boolean = false): Promise<Guest | null> {
   const party = await getPartyByCode(code);
   if (!party) return null;
 
@@ -175,6 +177,7 @@ export async function joinParty(code: string, guestName: string): Promise<Guest 
       party_id: party.id,
       name: guestName,
       is_host: false,
+      wants_squares: wantsSquares,
     })
     .select()
     .single();
@@ -185,6 +188,20 @@ export async function joinParty(code: string, guestName: string): Promise<Guest 
   }
 
   return dbGuestToGuest(guestData);
+}
+
+export async function updateGuestSquaresOptIn(guestId: string, wantsSquares: boolean): Promise<boolean> {
+  const { error } = await supabase
+    .from('guests')
+    .update({ wants_squares: wantsSquares })
+    .eq('id', guestId);
+
+  if (error) {
+    console.error('Error updating squares opt-in:', error);
+    return false;
+  }
+
+  return true;
 }
 
 export async function removeGuest(guestId: string, partyCode: string): Promise<boolean> {

@@ -15,7 +15,7 @@ interface PartyData {
   name: string;
   isLocked: boolean;
   games: Game[];
-  guests: { id: string; name: string; isHost: boolean }[];
+  guests: { id: string; name: string; isHost: boolean; wantsSquares: boolean }[];
   correctPredictions: Record<string, CorrectPrediction[]>;
 }
 
@@ -225,7 +225,12 @@ export default function HostPlayView() {
 
       {/* Squares Tab */}
       {activeTab === 'squares' && guestId && (
-        <SquaresGrid partyCode={code} guestId={guestId} isHost={false} />
+        <SquaresGrid
+          partyCode={code}
+          guestId={guestId}
+          isHost={false}
+          wantsSquares={party.guests.find(g => g.id === guestId)?.wantsSquares}
+        />
       )}
 
       {/* Leaderboard Tab */}

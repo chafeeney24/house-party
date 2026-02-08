@@ -10,6 +10,7 @@ function JoinPartyForm() {
   
   const [code, setCode] = useState(codeFromUrl);
   const [guestName, setGuestName] = useState('');
+  const [wantsSquares, setWantsSquares] = useState(false);
   const [partyName, setPartyName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,7 +54,7 @@ function JoinPartyForm() {
       const res = await fetch(`/api/party/${code}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ guestName }),
+        body: JSON.stringify({ guestName, wantsSquares }),
       });
 
       if (!res.ok) {
@@ -125,6 +126,28 @@ function JoinPartyForm() {
                 className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400"
                 required
               />
+            </div>
+
+            {/* Squares Opt-In */}
+            <div
+              onClick={() => setWantsSquares(!wantsSquares)}
+              className={`flex items-center gap-3 p-4 rounded-xl border cursor-pointer transition-all ${
+                wantsSquares
+                  ? 'bg-emerald-500/15 border-emerald-500/40'
+                  : 'bg-white/5 border-white/10 hover:border-white/20'
+              }`}
+            >
+              <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                wantsSquares
+                  ? 'bg-emerald-500 border-emerald-500'
+                  : 'border-white/30'
+              }`}>
+                {wantsSquares && <span className="text-white text-sm font-bold">✓</span>}
+              </div>
+              <div>
+                <p className="text-white font-medium text-sm">🏈 Super Bowl Squares ($10)</p>
+                <p className="text-white/40 text-xs mt-0.5">Get randomly assigned squares for each quarter</p>
+              </div>
             </div>
 
             {error && (
