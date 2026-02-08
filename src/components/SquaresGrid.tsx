@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
 import { SquaresGrid as SquaresGridType, SquareClaim, Quarter } from '@/types';
 
 interface SquaresGridProps {
@@ -16,13 +16,41 @@ interface WinningSquare {
   label: string;
 }
 
+interface ESPNData {
+  state: 'pre' | 'in' | 'post';
+  period: number;
+  clock: string;
+  detail: string;
+  homeTeam: { name: string; abbreviation: string; score: number };
+  awayTeam: { name: string; abbreviation: string; score: number };
+  quarterScores: { quarter: string; homeScore: number; awayScore: number }[];
+  isComplete: boolean;
+}
+
+// Unique colors for each guest in the grid
+const GUEST_COLORS = [
+  { bg: 'bg-blue-500', text: 'text-white', hex: '#3b82f6' },
+  { bg: 'bg-emerald-500', text: 'text-white', hex: '#10b981' },
+  { bg: 'bg-purple-500', text: 'text-white', hex: '#a855f7' },
+  { bg: 'bg-pink-500', text: 'text-white', hex: '#ec4899' },
+  { bg: 'bg-amber-500', text: 'text-white', hex: '#f59e0b' },
+  { bg: 'bg-teal-500', text: 'text-white', hex: '#14b8a6' },
+  { bg: 'bg-indigo-500', text: 'text-white', hex: '#6366f1' },
+  { bg: 'bg-rose-500', text: 'text-white', hex: '#f43f5e' },
+  { bg: 'bg-cyan-500', text: 'text-white', hex: '#06b6d4' },
+  { bg: 'bg-lime-500', text: 'text-white', hex: '#84cc16' },
+  { bg: 'bg-orange-500', text: 'text-white', hex: '#f97316' },
+  { bg: 'bg-violet-500', text: 'text-white', hex: '#8b5cf6' },
+];
+
 export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridProps) {
   const [grid, setGrid] = useState<SquaresGridType | null>(null);
   const [loading, setLoading] = useState(true);
-  const [creating, setCreating] = useState(false);
   const [showScoreModal, setShowScoreModal] = useState<Quarter | null>(null);
   const [scoreHome, setScoreHome] = useState('');
   const [scoreAway, setScoreAway] = useState('');
+  const [liveData, setLiveData] = useState<ESPNData | null>(null);
+  const autoScoredRef = useRef<Set<string>>(new Set());
 
   const fetchGrid = useCallback(async () => {
     try {
@@ -38,89 +66,90 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
     }
   }, [partyCode]);
 
+  // Poll grid data
   useEffect(() => {
     fetchGrid();
     const interval = setInterval(fetchGrid, 5000);
     return () => clearInterval(interval);
   }, [fetchGrid]);
 
-  const createGrid = async () => {
-    setCreating(true);
-    try {
-      const res = await fetch(`/api/party/${partyCode}/squares`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'create',
-          teamHome: 'Patriots',
-          teamAway: 'Seahawks',
-        }),
-      });
-      if (res.ok) {
-        fetchGrid();
+  // Poll ESPN live scores
+  useEffect(() => {
+    if (!grid?.numbersDrawn) return;
+
+    const fetchESPN = async () => {
+      try {
+        const res = await fetch(`/api/party/${partyCode}/espn`);
+        if (res.ok) {
+          const data = await res.json();
+          if (!data.error) {
+            setLiveData(data);
+          }
+        }
+      } catch (err) {
+        console.error('ESPN fetch failed:', err);
       }
-    } finally {
-      setCreating(false);
-    }
-  };
+    };
 
-  const claimSquare = async (row: number, col: number) => {
-    if (!grid || grid.numbersDrawn) return;
+    fetchESPN();
+    // Poll more frequently during live game
+    const intervalMs = liveData?.state === 'in' ? 30000 : 300000;
+    const interval = setInterval(fetchESPN, intervalMs);
+    return () => clearInterval(interval);
+  }, [partyCode, grid?.numbersDrawn, liveData?.state]);
 
-    try {
-      const res = await fetch(`/api/party/${partyCode}/squares`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-guest-id': guestId,
-        },
-        body: JSON.stringify({
-          action: 'claim',
-          rowIndex: row,
-          colIndex: col,
-        }),
-      });
-      if (res.ok) {
+  // Auto-submit scores from ESPN (host only)
+  useEffect(() => {
+    if (!isHost || !liveData || !grid?.numbersDrawn) return;
+    if (liveData.state === 'pre') return;
+
+    const submitQuarterScore = async (quarter: string, homeScore: number, awayScore: number) => {
+      const key = `${quarter}-${homeScore}-${awayScore}`;
+      if (autoScoredRef.current.has(key)) return;
+      autoScoredRef.current.add(key);
+
+      try {
+        await fetch(`/api/party/${partyCode}/squares`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'score',
+            quarter,
+            homeScore,
+            awayScore,
+          }),
+        });
         fetchGrid();
+      } catch (err) {
+        console.error('Auto-score failed:', err);
+        autoScoredRef.current.delete(key);
       }
-    } catch (err) {
-      console.error('Failed to claim square:', err);
-    }
-  };
+    };
 
-  const unclaimSquare = async (row: number, col: number) => {
-    if (!grid || grid.numbersDrawn) return;
+    for (const qs of liveData.quarterScores) {
+      const quarterKey = qs.quarter === 'q4' ? 'final' : qs.quarter;
 
-    try {
-      const res = await fetch(`/api/party/${partyCode}/squares?row=${row}&col=${col}`, {
-        method: 'DELETE',
-        headers: { 'x-guest-id': guestId },
-      });
-      if (res.ok) {
-        fetchGrid();
+      // Check if this quarter is already scored in the grid
+      let alreadyScored = false;
+      if (quarterKey === 'q1' && grid.q1ScoreHome !== null) alreadyScored = true;
+      if (quarterKey === 'q2' && grid.q2ScoreHome !== null) alreadyScored = true;
+      if (quarterKey === 'q3' && grid.q3ScoreHome !== null) alreadyScored = true;
+      if (quarterKey === 'final' && grid.finalScoreHome !== null) alreadyScored = true;
+
+      // Only auto-submit if the quarter is completed and not already saved
+      // For non-final quarters, we can submit once the period advances past that quarter
+      if (!alreadyScored) {
+        const periodNum = parseInt(qs.quarter.replace('q', ''));
+        const isQuarterDone = liveData.period > periodNum || liveData.isComplete;
+
+        if (quarterKey === 'final' && liveData.isComplete) {
+          submitQuarterScore('final', qs.homeScore, qs.awayScore);
+        } else if (quarterKey !== 'final' && isQuarterDone) {
+          submitQuarterScore(quarterKey, qs.homeScore, qs.awayScore);
+        }
       }
-    } catch (err) {
-      console.error('Failed to unclaim square:', err);
     }
-  };
-
-  const drawNumbers = async () => {
-    if (!grid || grid.numbersDrawn) return;
-    if (!confirm('Draw numbers now? This cannot be undone and locks all squares!')) return;
-
-    try {
-      const res = await fetch(`/api/party/${partyCode}/squares`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'draw' }),
-      });
-      if (res.ok) {
-        fetchGrid();
-      }
-    } catch (err) {
-      console.error('Failed to draw numbers:', err);
-    }
-  };
+  }, [isHost, liveData, grid, partyCode, fetchGrid]);
 
   const submitScore = async () => {
     if (!showScoreModal) return;
@@ -192,103 +221,136 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
       .slice(0, 2);
   };
 
+  // Build a stable guest-to-color map
+  const getGuestColorMap = (): Map<string, typeof GUEST_COLORS[0]> => {
+    if (!grid) return new Map();
+    const uniqueGuestIds = [...new Set(grid.claims.map((c) => c.guestId))];
+    const map = new Map<string, typeof GUEST_COLORS[0]>();
+    uniqueGuestIds.forEach((id, index) => {
+      map.set(id, GUEST_COLORS[index % GUEST_COLORS.length]);
+    });
+    return map;
+  };
+
+  const guestColorMap = getGuestColorMap();
+
   const claimedCount = grid?.claims.length || 0;
   const myClaimsCount = grid?.claims.filter((c) => c.guestId === guestId).length || 0;
 
   if (loading) {
-    return <div className="text-center text-white py-8">Loading squares...</div>;
-  }
-
-  if (!grid) {
     return (
       <div className="text-center py-8">
-        <p className="text-white mb-4">No squares grid yet!</p>
-        {isHost && (
-          <button
-            onClick={createGrid}
-            disabled={creating}
-            className="bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-6 rounded-lg"
-          >
-            {creating ? 'Creating...' : '🏈 Create Super Bowl Squares'}
-          </button>
-        )}
+        <div className="inline-block w-6 h-6 border-2 border-white/30 border-t-orange-400 rounded-full animate-spin" />
+        <p className="text-white/60 mt-2 text-sm">Loading squares...</p>
+      </div>
+    );
+  }
+
+  // No grid yet and not assigned
+  if (!grid || !grid.numbersDrawn) {
+    return (
+      <div className="max-w-lg mx-auto">
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+          <div className="text-4xl mb-3">🏈</div>
+          <h3 className="text-lg font-bold text-white mb-2">Super Bowl Squares</h3>
+          <p className="text-white/60 text-sm">
+            Squares will be randomly assigned to all players when the host locks predictions.
+          </p>
+          {grid && (
+            <p className="text-orange-300 text-sm mt-3">
+              {grid.teamAway} vs {grid.teamHome}
+            </p>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="max-w-2xl mx-auto">
+      {/* Live Scoreboard */}
+      {liveData && liveData.state !== 'pre' && (
+        <div className="bg-gradient-to-r from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-xl p-4 mb-4">
+          <div className="flex justify-between items-center max-w-xs mx-auto">
+            <div className="text-center min-w-[60px]">
+              <div className="text-white/50 text-[10px] font-medium uppercase tracking-wider">{liveData.awayTeam.abbreviation}</div>
+              <div className="text-3xl font-bold text-white">{liveData.awayTeam.score}</div>
+            </div>
+            <div className="text-center px-3">
+              {liveData.state === 'in' && (
+                <div className="flex items-center justify-center gap-1.5 mb-0.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                  <span className="text-red-400 text-[10px] font-bold uppercase">Live</span>
+                </div>
+              )}
+              <div className="text-orange-300 text-xs font-semibold">{liveData.detail}</div>
+              {liveData.state === 'in' && liveData.clock && (
+                <div className="text-white/40 text-sm font-mono">{liveData.clock}</div>
+              )}
+            </div>
+            <div className="text-center min-w-[60px]">
+              <div className="text-white/50 text-[10px] font-medium uppercase tracking-wider">{liveData.homeTeam.abbreviation}</div>
+              <div className="text-3xl font-bold text-white">{liveData.homeTeam.score}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
-      <div className="text-center mb-4">
-        <h2 className="text-xl font-bold text-white">🏈 Super Bowl Squares</h2>
-        <p className="text-blue-300 text-sm">
-          {claimedCount}/100 claimed • You have {myClaimsCount} square{myClaimsCount !== 1 ? 's' : ''}
+      <div className="text-center mb-3">
+        <h2 className="text-lg font-bold text-white">🏈 Super Bowl Squares</h2>
+        <p className="text-white/50 text-xs">
+          {claimedCount}/100 claimed &middot; You have {myClaimsCount} square{myClaimsCount !== 1 ? 's' : ''}
         </p>
       </div>
 
-      {/* Host Controls */}
-      {isHost && (
-        <div className="flex flex-wrap gap-2 justify-center mb-4">
-          {!grid.numbersDrawn && (
+      {/* Host Score Controls (fallback) */}
+      {isHost && grid.numbersDrawn && (
+        <div className="flex flex-wrap gap-2 justify-center mb-3">
+          {[
+            { q: 'q1' as Quarter, label: 'Q1', scored: grid.q1ScoreHome !== null },
+            { q: 'q2' as Quarter, label: 'Q2', scored: grid.q2ScoreHome !== null },
+            { q: 'q3' as Quarter, label: 'Q3', scored: grid.q3ScoreHome !== null },
+            { q: 'final' as Quarter, label: 'Final', scored: grid.finalScoreHome !== null },
+          ].map(({ q, label, scored }) => (
             <button
-              onClick={drawNumbers}
-              disabled={claimedCount === 0}
-              className="bg-purple-500 hover:bg-purple-600 disabled:bg-gray-500 text-white font-semibold py-2 px-4 rounded-lg text-sm"
+              key={q}
+              onClick={() => setShowScoreModal(q)}
+              className={`py-1.5 px-3 rounded-lg text-xs font-semibold transition-colors ${
+                scored
+                  ? 'bg-green-500/20 text-green-300 border border-green-500/30'
+                  : 'bg-white/10 text-white/70 hover:bg-white/20 border border-white/10'
+              }`}
             >
-              🎲 Draw Numbers
+              {scored ? `✓ ${label}` : label}
             </button>
-          )}
-          {grid.numbersDrawn && (
-            <>
-              <button
-                onClick={() => setShowScoreModal('q1')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg text-sm"
-              >
-                Q1
-              </button>
-              <button
-                onClick={() => setShowScoreModal('q2')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg text-sm"
-              >
-                Q2
-              </button>
-              <button
-                onClick={() => setShowScoreModal('q3')}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-3 rounded-lg text-sm"
-              >
-                Q3
-              </button>
-              <button
-                onClick={() => setShowScoreModal('final')}
-                className="bg-yellow-500 hover:bg-yellow-600 text-white font-semibold py-2 px-3 rounded-lg text-sm"
-              >
-                Final
-              </button>
-            </>
-          )}
+          ))}
         </div>
       )}
 
       {/* Scores Display */}
-      {grid.numbersDrawn && (
-        <div className="flex justify-center gap-4 mb-4 text-sm">
+      {grid.numbersDrawn && (grid.q1ScoreHome !== null || grid.q2ScoreHome !== null || grid.q3ScoreHome !== null || grid.finalScoreHome !== null) && (
+        <div className="flex justify-center gap-2 mb-3 flex-wrap">
           {grid.q1ScoreHome !== null && (
-            <span className="bg-white/20 text-white px-2 py-1 rounded">
+            <span className="bg-white/10 text-white/80 text-xs px-2 py-1 rounded-md">
               Q1: {grid.q1ScoreAway}-{grid.q1ScoreHome}
             </span>
           )}
           {grid.q2ScoreHome !== null && (
-            <span className="bg-white/20 text-white px-2 py-1 rounded">
+            <span className="bg-white/10 text-white/80 text-xs px-2 py-1 rounded-md">
               Q2: {grid.q2ScoreAway}-{grid.q2ScoreHome}
             </span>
           )}
           {grid.q3ScoreHome !== null && (
-            <span className="bg-white/20 text-white px-2 py-1 rounded">
+            <span className="bg-white/10 text-white/80 text-xs px-2 py-1 rounded-md">
               Q3: {grid.q3ScoreAway}-{grid.q3ScoreHome}
             </span>
           )}
           {grid.finalScoreHome !== null && (
-            <span className="bg-yellow-500/30 text-white px-2 py-1 rounded">
+            <span className="bg-orange-500/20 text-orange-300 text-xs px-2 py-1 rounded-md font-semibold">
               Final: {grid.finalScoreAway}-{grid.finalScoreHome}
             </span>
           )}
@@ -296,117 +358,124 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
       )}
 
       {/* Grid */}
-      <div className="overflow-x-auto">
-        <div className="inline-block min-w-full">
-          {/* Team Home Header */}
-          <div className="text-center text-white font-bold text-sm mb-2 ml-10">
-            {grid.teamHome} →
-          </div>
+      <div className="w-full max-w-[500px] mx-auto px-1">
+        {/* Home team header */}
+        <div className="text-center text-xs font-bold text-white/70 mb-1" style={{ paddingLeft: '10%' }}>
+          {grid.teamHome} &rarr;
+        </div>
 
-          {/* Numbers Row (if drawn) */}
-          <div className="flex">
-            <div className="w-10 h-8" /> {/* Corner spacer */}
-            {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => (
+        {/* 11x11 CSS Grid: header row + header col + 10x10 squares */}
+        <div
+          className="grid w-full"
+          style={{
+            gridTemplateColumns: '10% repeat(10, 1fr)',
+            gridTemplateRows: '8% repeat(10, 1fr)',
+            aspectRatio: '11 / 11.2',
+            gap: '1px',
+          }}
+        >
+          {/* Corner cell */}
+          <div className="rounded-tl-lg" />
+
+          {/* Header row (home numbers) */}
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => (
+            <div
+              key={`h-${col}`}
+              className={`flex items-center justify-center text-white font-bold text-[10px] sm:text-xs bg-blue-900/60 ${col === 9 ? 'rounded-tr-lg' : ''}`}
+            >
+              {grid.homeNumbers ? grid.homeNumbers[col] : '?'}
+            </div>
+          ))}
+
+          {/* Grid rows */}
+          {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
+            <Fragment key={`row-${row}`}>
+              {/* Sidebar cell (away number) */}
               <div
-                key={`header-${col}`}
-                className="w-8 h-8 flex items-center justify-center text-white font-bold text-xs bg-blue-800/50 border border-blue-700/50"
+                className={`flex items-center justify-center text-white font-bold text-[10px] sm:text-xs bg-green-900/60 ${row === 9 ? 'rounded-bl-lg' : ''}`}
               >
-                {grid.numbersDrawn && grid.homeNumbers ? grid.homeNumbers[col] : '?'}
+                {grid.awayNumbers ? grid.awayNumbers[row] : '?'}
               </div>
-            ))}
-          </div>
 
-          {/* Grid Rows with Away Team Sidebar */}
-          <div className="flex">
-            {/* Team Away Numbers Column */}
-            <div className="w-10 flex flex-col">
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
-                <div
-                  key={`sidebar-${row}`}
-                  className="h-8 flex items-center justify-center text-white font-bold text-xs bg-green-800/50 border border-green-700/50"
-                >
-                  {grid.numbersDrawn && grid.awayNumbers ? grid.awayNumbers[row] : '?'}
-                </div>
-              ))}
-            </div>
+              {/* 10 square cells */}
+              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => {
+                const claim = getClaimForSquare(row, col);
+                const isMine = claim?.guestId === guestId;
+                const winLabel = isWinningSquare(row, col);
+                const color = claim ? guestColorMap.get(claim.guestId) : null;
 
-            {/* Squares Grid */}
-            <div>
-              {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((row) => (
-                <div key={`row-${row}`} className="flex">
-                  {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((col) => {
-                    const claim = getClaimForSquare(row, col);
-                    const isMine = claim?.guestId === guestId;
-                    const winLabel = isWinningSquare(row, col);
+                return (
+                  <div
+                    key={`${row}-${col}`}
+                    className={`
+                      flex items-center justify-center text-[9px] sm:text-[10px] font-bold relative
+                      transition-all
+                      ${winLabel ? 'bg-yellow-400 text-black ring-1 ring-yellow-300 z-10 animate-winner-glow' : ''}
+                      ${!winLabel && claim && isMine ? `${color?.bg || 'bg-blue-500'} ${color?.text || 'text-white'} ring-1 ring-white/30` : ''}
+                      ${!winLabel && claim && !isMine ? `${color?.bg || 'bg-gray-500'} ${color?.text || 'text-white'} opacity-70` : ''}
+                      ${!winLabel && !claim ? 'bg-white/5 text-white/20' : ''}
+                      ${row === 9 && col === 9 ? 'rounded-br-lg' : ''}
+                    `}
+                    title={claim ? `${claim.guestName}${isMine ? ' (You)' : ''}` : 'Empty'}
+                  >
+                    {winLabel && (
+                      <span className="absolute -top-1 -right-1 bg-yellow-600 text-white text-[6px] px-0.5 rounded z-20 leading-tight">
+                        {winLabel}
+                      </span>
+                    )}
+                    {claim ? getInitials(claim.guestName || '') : ''}
+                  </div>
+                );
+              })}
+            </Fragment>
+          ))}
+        </div>
 
-                    return (
-                      <button
-                        key={`${row}-${col}`}
-                        onClick={() => {
-                          if (claim && isMine && !grid.numbersDrawn) {
-                            unclaimSquare(row, col);
-                          } else if (!claim && !grid.numbersDrawn) {
-                            claimSquare(row, col);
-                          }
-                        }}
-                        disabled={grid.numbersDrawn || (claim && !isMine)}
-                        className={`
-                          w-8 h-8 flex items-center justify-center text-xs font-bold
-                          border border-white/20 transition-all relative
-                          ${winLabel ? 'bg-yellow-400 text-black ring-2 ring-yellow-300' : ''}
-                          ${!winLabel && claim && isMine ? 'bg-green-500 text-white' : ''}
-                          ${!winLabel && claim && !isMine ? 'bg-red-400/70 text-white' : ''}
-                          ${!winLabel && !claim ? 'bg-white/10 hover:bg-white/30 text-white/50' : ''}
-                          ${grid.numbersDrawn ? 'cursor-default' : claim && !isMine ? 'cursor-not-allowed' : 'cursor-pointer'}
-                        `}
-                        title={claim ? `${claim.guestName}${isMine ? ' (You)' : ''}` : 'Click to claim'}
-                      >
-                        {winLabel && (
-                          <span className="absolute -top-1 -right-1 bg-yellow-600 text-white text-[8px] px-1 rounded">
-                            {winLabel}
-                          </span>
-                        )}
-                        {claim ? getInitials(claim.guestName || '') : ''}
-                      </button>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
-          </div>
-          
-          {/* Team Away Label */}
-          <div className="text-center text-white font-bold text-sm mt-2 ml-10">
-            ↑ {grid.teamAway}
-          </div>
+        {/* Away team label */}
+        <div className="text-center text-xs font-bold text-white/70 mt-1" style={{ paddingLeft: '10%' }}>
+          &uarr; {grid.teamAway}
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="flex justify-center gap-4 mt-4 text-xs text-white/70">
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-green-500 rounded" /> Yours
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-red-400/70 rounded" /> Taken
-        </span>
-        <span className="flex items-center gap-1">
-          <span className="w-3 h-3 bg-yellow-400 rounded" /> Winner
-        </span>
+      {/* Legend - Guest Colors */}
+      <div className="flex flex-wrap justify-center gap-2 mt-4 px-2">
+        {[...guestColorMap.entries()].map(([gId, color]) => {
+          const claim = grid.claims.find((c) => c.guestId === gId);
+          const name = claim?.guestName || 'Unknown';
+          const count = grid.claims.filter((c) => c.guestId === gId).length;
+          const isMe = gId === guestId;
+          return (
+            <span
+              key={gId}
+              className={`flex items-center gap-1 text-[10px] sm:text-xs text-white/80 ${isMe ? 'font-bold' : ''}`}
+            >
+              <span className={`w-2.5 h-2.5 rounded-sm ${color.bg}`} />
+              {name}{isMe ? ' (You)' : ''} <span className="text-white/40">{count}</span>
+            </span>
+          );
+        })}
       </div>
 
       {/* Winners List */}
       {grid.numbersDrawn && getWinningSquares().length > 0 && (
-        <div className="mt-4 bg-white/10 rounded-lg p-4">
-          <h3 className="text-white font-bold mb-2">🏆 Winners</h3>
+        <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
+          <h3 className="text-white font-bold mb-2 text-sm">🏆 Winners</h3>
           {getWinningSquares().map((w) => {
             const claim = getClaimForSquare(w.row, w.col);
+            const color = claim ? guestColorMap.get(claim.guestId) : null;
             return (
-              <div key={w.quarter} className="text-white/90 text-sm">
-                <span className="font-semibold">{w.label}:</span>{' '}
-                {claim ? claim.guestName : 'Unclaimed'}{' '}
+              <div key={w.quarter} className="flex items-center gap-2 text-sm py-1">
+                <span className="text-orange-300 font-semibold w-10">{w.label}</span>
+                {claim ? (
+                  <span className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-sm ${color?.bg || 'bg-gray-500'}`} />
+                    <span className="text-white">{claim.guestName}</span>
+                  </span>
+                ) : (
+                  <span className="text-white/40">Unclaimed</span>
+                )}
                 {grid.homeNumbers && grid.awayNumbers && (
-                  <span className="text-white/50">
+                  <span className="text-white/30 text-xs ml-auto">
                     ({grid.awayNumbers[w.row]}-{grid.homeNumbers[w.col]})
                   </span>
                 )}
@@ -416,31 +485,33 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
         </div>
       )}
 
-      {/* Score Modal */}
+      {/* Score Modal (fallback for manual entry) */}
       {showScoreModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="bg-slate-800 rounded-xl p-6 max-w-sm w-full">
-            <h3 className="text-xl font-bold text-white mb-4">
-              Enter {showScoreModal.toUpperCase()} Score
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-[#0f1f3a] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
+            <h3 className="text-lg font-bold text-white mb-4">
+              Enter {showScoreModal === 'final' ? 'Final' : showScoreModal.toUpperCase()} Score
             </h3>
             <div className="space-y-4">
               <div>
-                <label className="text-white/70 text-sm">{grid.teamAway}</label>
+                <label className="text-white/60 text-sm">{grid.teamAway}</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={scoreAway}
                   onChange={(e) => setScoreAway(e.target.value)}
-                  className="w-full bg-white/10 text-white rounded-lg px-4 py-2 mt-1"
+                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 mt-1 border border-white/10 focus:outline-none focus:ring-2 focus:ring-orange-400 text-lg"
                   placeholder="0"
                 />
               </div>
               <div>
-                <label className="text-white/70 text-sm">{grid.teamHome}</label>
+                <label className="text-white/60 text-sm">{grid.teamHome}</label>
                 <input
                   type="number"
+                  inputMode="numeric"
                   value={scoreHome}
                   onChange={(e) => setScoreHome(e.target.value)}
-                  className="w-full bg-white/10 text-white rounded-lg px-4 py-2 mt-1"
+                  className="w-full bg-white/10 text-white rounded-lg px-4 py-3 mt-1 border border-white/10 focus:outline-none focus:ring-2 focus:ring-orange-400 text-lg"
                   placeholder="0"
                 />
               </div>
@@ -448,13 +519,13 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
             <div className="flex gap-2 mt-6">
               <button
                 onClick={() => setShowScoreModal(null)}
-                className="flex-1 bg-white/20 text-white py-2 rounded-lg"
+                className="flex-1 bg-white/10 text-white py-3 rounded-lg font-medium border border-white/10"
               >
                 Cancel
               </button>
               <button
                 onClick={submitScore}
-                className="flex-1 bg-green-500 text-white py-2 rounded-lg font-semibold"
+                className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-3 rounded-lg font-bold"
               >
                 Save Score
               </button>

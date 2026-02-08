@@ -1,8 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase, DbSquaresGrid, DbSquaresClaim, DbGuest } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 
-// Fisher-Yates shuffle
+// Fisher-Yates shuffle for numbers
 function shuffleArray(array: number[]): number[] {
+  const result = [...array];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
+
+// Generic Fisher-Yates shuffle
+function shuffle<T>(array: T[]): T[] {
   const result = [...array];
   for (let i = result.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -298,6 +308,82 @@ export async function PATCH(
     }
 
     return NextResponse.json({ success: true });
+  }
+
+  // Action: auto-assign all squares to guests and draw numbers
+  if (body.action === 'auto-assign') {
+    if (grid.numbers_drawn) {
+      return NextResponse.json({ error: 'Squares already assigned' }, { status: 400 });
+    }
+
+    // Get all guests in this party
+    const { data: guests } = await supabase
+      .from('guests')
+      .select('id')
+      .eq('party_id', party.id);
+
+    if (!guests || guests.length === 0) {
+      return NextResponse.json({ error: 'No guests to assign' }, { status: 400 });
+    }
+
+    // Clear any existing manual claims
+    await supabase
+      .from('squares_claims')
+      .delete()
+      .eq('grid_id', grid.id);
+
+    // Create all 100 square positions and shuffle them
+    const positions: [number, number][] = [];
+    for (let r = 0; r < 10; r++) {
+      for (let c = 0; c < 10; c++) {
+        positions.push([r, c]);
+      }
+    }
+    const shuffledPositions = shuffle(positions);
+
+    // Shuffle guest order for fair distribution
+    const shuffledGuestIds = shuffle(guests.map(g => g.id));
+
+    // Assign squares round-robin across shuffled positions
+    const allSquares = shuffledPositions.map(([row, col], index) => ({
+      grid_id: grid.id,
+      guest_id: shuffledGuestIds[index % shuffledGuestIds.length],
+      row_index: row,
+      col_index: col,
+    }));
+
+    // Batch insert all claims
+    const { error: claimError } = await supabase
+      .from('squares_claims')
+      .insert(allSquares);
+
+    if (claimError) {
+      return NextResponse.json({ error: claimError.message }, { status: 500 });
+    }
+
+    // Auto-draw numbers
+    const homeNumbers = shuffleArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+    const awayNumbers = shuffleArray([0, 1, 2, 3, 4, 5, 6, 7, 8, 9]);
+
+    const { error: drawError } = await supabase
+      .from('squares_grids')
+      .update({
+        numbers_drawn: true,
+        home_numbers: homeNumbers,
+        away_numbers: awayNumbers,
+      })
+      .eq('id', grid.id);
+
+    if (drawError) {
+      return NextResponse.json({ error: drawError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      squaresAssigned: 100,
+      guestCount: guests.length,
+      squaresPerGuest: Math.floor(100 / guests.length),
+    });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

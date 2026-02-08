@@ -187,6 +187,50 @@ export async function joinParty(code: string, guestName: string): Promise<Guest 
   return dbGuestToGuest(guestData);
 }
 
+export async function removeGuest(guestId: string, partyCode: string): Promise<boolean> {
+  const party = await getPartyByCode(partyCode);
+  if (!party) return false;
+
+  // Don't allow removing the host
+  const guest = party.guests.find(g => g.id === guestId);
+  if (!guest || guest.isHost) return false;
+
+  // Delete predictions by this guest for this party
+  await supabase
+    .from('predictions')
+    .delete()
+    .eq('guest_id', guestId)
+    .eq('party_id', party.id);
+
+  // Delete squares claims by this guest
+  const { data: grid } = await supabase
+    .from('squares_grids')
+    .select('id')
+    .eq('party_id', party.id)
+    .single();
+
+  if (grid) {
+    await supabase
+      .from('squares_claims')
+      .delete()
+      .eq('grid_id', grid.id)
+      .eq('guest_id', guestId);
+  }
+
+  // Delete the guest
+  const { error } = await supabase
+    .from('guests')
+    .delete()
+    .eq('id', guestId);
+
+  if (error) {
+    console.error('Error removing guest:', error);
+    return false;
+  }
+
+  return true;
+}
+
 export async function getGuest(guestId: string): Promise<Guest | null> {
   const { data, error } = await supabase
     .from('guests')
@@ -233,6 +277,24 @@ export async function addGame(
   }
 
   return dbGameToGame(gameData);
+}
+
+export async function reorderGames(partyId: string, gameIds: string[]): Promise<boolean> {
+  // Update order_num for each game based on its position in the array
+  for (let i = 0; i < gameIds.length; i++) {
+    const { error } = await supabase
+      .from('games')
+      .update({ order_num: i })
+      .eq('id', gameIds[i])
+      .eq('party_id', partyId);
+
+    if (error) {
+      console.error('Error reordering game:', error);
+      return false;
+    }
+  }
+
+  return true;
 }
 
 export async function getGame(gameId: string): Promise<Game | null> {

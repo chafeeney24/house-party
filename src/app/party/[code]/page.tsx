@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Game, LeaderboardEntry } from '@/types';
+import SquaresGrid from '@/components/SquaresGrid';
 
 interface CorrectPrediction {
   guestId: string;
@@ -32,7 +33,7 @@ export default function PartyView() {
   const [predictions, setPredictions] = useState<PredictionMap>({});
   const [guestId, setGuestId] = useState<string | null>(null);
   const [guestName, setGuestName] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'predictions' | 'leaderboard'>('predictions');
+  const [activeTab, setActiveTab] = useState<'predictions' | 'squares' | 'leaderboard'>('predictions');
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [needsRejoin, setNeedsRejoin] = useState(false);
   const [rejoinName, setRejoinName] = useState('');
@@ -204,19 +205,19 @@ export default function PartyView() {
   // Show rejoin form if needed
   if (needsRejoin) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center p-4">
+      <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] flex items-center justify-center p-4">
         <div className="w-full max-w-md">
-          <div className="bg-white/10 backdrop-blur-lg rounded-2xl p-8">
+          <div className="bg-white/5 border border-white/10 rounded-2xl p-8">
             <h1 className="text-2xl font-bold text-white mb-2 text-center">
               Welcome Back! 👋
             </h1>
-            <p className="text-blue-200 text-center mb-6">
+            <p className="text-white/60 text-center mb-6">
               {party?.name || 'Loading...'}
             </p>
 
             <form onSubmit={handleRejoin} className="space-y-4">
               <div>
-                <label className="block text-blue-200 mb-2 font-medium">
+                <label className="block text-white/60 mb-2 font-medium">
                   What&apos;s your name?
                 </label>
                 <input
@@ -224,7 +225,7 @@ export default function PartyView() {
                   placeholder="Enter the name you used before"
                   value={rejoinName}
                   onChange={(e) => setRejoinName(e.target.value)}
-                  className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full bg-white/20 text-white placeholder-white/50 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400"
                   required
                   autoFocus
                 />
@@ -237,17 +238,17 @@ export default function PartyView() {
               <button
                 type="submit"
                 disabled={rejoinLoading || !rejoinName}
-                className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
+                className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-bold py-3 px-8 rounded-xl shadow-lg hover:shadow-xl transition-all disabled:opacity-50"
               >
                 {rejoinLoading ? 'Finding you...' : 'Rejoin Party'}
               </button>
             </form>
 
             <div className="mt-6 text-center">
-              <p className="text-blue-300 text-sm mb-2">First time here?</p>
+              <p className="text-orange-300 text-sm mb-2">First time here?</p>
               <button
                 onClick={handleJoinNew}
-                className="text-white underline hover:text-blue-200"
+                className="text-white underline hover:text-white/60"
               >
                 Join as a new guest
               </button>
@@ -260,18 +261,18 @@ export default function PartyView() {
 
   if (!party || !guestId) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] flex items-center justify-center">
         <div className="text-white text-xl">Loading party...</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 pb-24">
+    <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] p-4 pb-24">
       {/* Header */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
-        <p className="text-blue-300">
+        <p className="text-orange-300">
           Playing as <span className="font-semibold text-white">{guestName}</span>
         </p>
         {party.isLocked && (
@@ -285,7 +286,7 @@ export default function PartyView() {
       <div className="flex gap-2 mb-6 max-w-lg mx-auto">
         <button
           onClick={() => setActiveTab('predictions')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'predictions'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
@@ -294,8 +295,18 @@ export default function PartyView() {
           🎯 Predictions
         </button>
         <button
+          onClick={() => setActiveTab('squares')}
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
+            activeTab === 'squares'
+              ? 'bg-white text-slate-900'
+              : 'bg-white/10 text-white hover:bg-white/20'
+          }`}
+        >
+          🏈 Squares
+        </button>
+        <button
           onClick={() => setActiveTab('leaderboard')}
-          className={`flex-1 py-3 rounded-lg font-semibold transition-colors ${
+          className={`flex-1 py-3 rounded-lg font-semibold transition-colors text-sm ${
             activeTab === 'leaderboard'
               ? 'bg-white text-slate-900'
               : 'bg-white/10 text-white hover:bg-white/20'
@@ -310,7 +321,7 @@ export default function PartyView() {
         <div className="max-w-lg mx-auto space-y-4">
           {party.games.length === 0 ? (
             <div className="bg-white/10 rounded-xl p-8 text-center">
-              <p className="text-blue-200">
+              <p className="text-white/60">
                 No predictions yet. Wait for the host to add some!
               </p>
             </div>
@@ -330,12 +341,17 @@ export default function PartyView() {
         </div>
       )}
 
+      {/* Squares Tab */}
+      {activeTab === 'squares' && guestId && (
+        <SquaresGrid partyCode={code} guestId={guestId} isHost={false} />
+      )}
+
       {/* Leaderboard Tab */}
       {activeTab === 'leaderboard' && (
         <div className="max-w-lg mx-auto">
           <div className="bg-white/10 backdrop-blur-lg rounded-xl overflow-hidden">
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-blue-200">
+              <div className="p-8 text-center text-white/60">
                 No scores yet. Make some predictions!
               </div>
             ) : (
@@ -356,7 +372,7 @@ export default function PartyView() {
                         {entry.guestId === guestId && ' (you)'}
                       </span>
                     </div>
-                    <span className="text-xl font-bold text-blue-300">
+                    <span className="text-xl font-bold text-orange-300">
                       {entry.totalPoints} pts
                     </span>
                   </div>
@@ -426,12 +442,18 @@ function PredictionCard({
       : 'bg-white/20 text-white hover:bg-white/30';
   };
 
+  const [questionText, hintText] = game.question.split('\n');
+
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-white font-semibold flex-1">{game.question}</h3>
-        <span className="text-blue-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+      <div className="flex justify-between items-start mb-1">
+        <h3 className="text-white font-semibold flex-1">{questionText}</h3>
+        <span className="text-orange-300 text-sm ml-2 whitespace-nowrap">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
       </div>
+      {hintText && (
+        <p className="text-white/40 text-xs italic mb-3 leading-snug">{hintText}</p>
+      )}
+      {!hintText && <div className="mb-2" />}
 
       {/* Pick One */}
       {game.type === 'pick-one' && game.options && (
@@ -483,7 +505,7 @@ function PredictionCard({
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             disabled={!canSubmit}
-            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50"
             placeholder="Enter your prediction"
           />
           <button

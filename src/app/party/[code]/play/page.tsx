@@ -136,18 +136,18 @@ export default function HostPlayView() {
 
   if (!party || !guestId) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 flex items-center justify-center">
+      <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] flex items-center justify-center">
         <div className="text-white text-xl">Loading party...</div>
       </main>
     );
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-950 to-slate-900 p-4 pb-24">
+    <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] p-4 pb-24">
       {/* Header */}
       <div className="text-center mb-6">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
-        <p className="text-blue-300">
+        <p className="text-orange-300">
           Playing as <span className="font-semibold text-white">{guestName}</span>
         </p>
         {party.isLocked && (
@@ -203,7 +203,7 @@ export default function HostPlayView() {
         <div className="max-w-lg mx-auto space-y-4">
           {party.games.length === 0 ? (
             <div className="bg-white/10 rounded-xl p-8 text-center">
-              <p className="text-blue-200">
+              <p className="text-white/60">
                 No predictions yet. Add some from the host view!
               </p>
             </div>
@@ -233,7 +233,7 @@ export default function HostPlayView() {
         <div className="max-w-lg mx-auto">
           <div className="bg-white/10 backdrop-blur-lg rounded-xl overflow-hidden">
             {leaderboard.length === 0 ? (
-              <div className="p-8 text-center text-blue-200">
+              <div className="p-8 text-center text-white/60">
                 No scores yet. Make some predictions!
               </div>
             ) : (
@@ -254,7 +254,7 @@ export default function HostPlayView() {
                         {entry.guestId === guestId && ' (you)'}
                       </span>
                     </div>
-                    <span className="text-xl font-bold text-blue-300">
+                    <span className="text-xl font-bold text-orange-300">
                       {entry.totalPoints} pts
                     </span>
                   </div>
@@ -324,12 +324,18 @@ function PredictionCard({
       : 'bg-white/20 text-white hover:bg-white/30';
   };
 
+  const [questionText, hintText] = game.question.split('\n');
+
   return (
     <div className="bg-white/10 backdrop-blur-lg rounded-xl p-4">
-      <div className="flex justify-between items-start mb-3">
-        <h3 className="text-white font-semibold flex-1">{game.question}</h3>
-        <span className="text-blue-300 text-sm ml-2">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
+      <div className="flex justify-between items-start mb-1">
+        <h3 className="text-white font-semibold flex-1">{questionText}</h3>
+        <span className="text-orange-300 text-sm ml-2 whitespace-nowrap">{game.points} pt{game.points !== 1 ? 's' : ''}</span>
       </div>
+      {hintText && (
+        <p className="text-white/40 text-xs italic mb-3 leading-snug">{hintText}</p>
+      )}
+      {!hintText && <div className="mb-2" />}
 
       {/* Pick One */}
       {game.type === 'pick-one' && game.options && (
@@ -381,7 +387,7 @@ function PredictionCard({
             value={localValue}
             onChange={(e) => setLocalValue(e.target.value)}
             disabled={!canSubmit}
-            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-blue-400 disabled:opacity-50"
+            className="flex-1 bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400 disabled:opacity-50"
             placeholder="Enter your prediction"
           />
           <button
