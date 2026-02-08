@@ -456,6 +456,46 @@ export default function SquaresGrid({ partyCode, guestId, isHost }: SquaresGridP
         })}
       </div>
 
+      {/* Your Squares - show assigned numbers */}
+      {grid.numbersDrawn && grid.homeNumbers && grid.awayNumbers && myClaimsCount > 0 && (
+        <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
+          <h3 className="text-white font-bold mb-2 text-sm">🎯 Your Squares</h3>
+          <p className="text-white/40 text-xs mb-3">
+            You need the last digit of each team&apos;s score to match one of these pairs:
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {grid.claims
+              .filter((c) => c.guestId === guestId)
+              .map((c) => {
+                const homeNum = grid.homeNumbers![c.colIndex];
+                const awayNum = grid.awayNumbers![c.rowIndex];
+                const winLabel = isWinningSquare(c.rowIndex, c.colIndex);
+                return (
+                  <div
+                    key={`my-${c.rowIndex}-${c.colIndex}`}
+                    className={`flex items-center justify-between py-2 px-3 rounded-lg text-sm ${
+                      winLabel
+                        ? 'bg-yellow-400/20 border border-yellow-400/40 text-yellow-300'
+                        : 'bg-white/5 text-white/80'
+                    }`}
+                  >
+                    <span>
+                      <span className="text-white/50 text-xs">{grid.teamHome} </span>
+                      <span className="font-bold">{homeNum}</span>
+                      <span className="text-white/30 mx-1">–</span>
+                      <span className="text-white/50 text-xs">{grid.teamAway} </span>
+                      <span className="font-bold">{awayNum}</span>
+                    </span>
+                    {winLabel && (
+                      <span className="text-yellow-400 text-xs font-bold ml-2">🏆 {winLabel}</span>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
+
       {/* Winners List */}
       {grid.numbersDrawn && getWinningSquares().length > 0 && (
         <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
