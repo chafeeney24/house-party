@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Game, LeaderboardEntry } from '@/types';
 import SquaresGrid from '@/components/SquaresGrid';
 
@@ -23,9 +23,22 @@ interface PredictionMap {
   [gameId: string]: string | number;
 }
 
-export default function PartyView() {
+export default function PartyViewPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] flex items-center justify-center">
+        <div className="text-white text-xl">Loading party...</div>
+      </main>
+    }>
+      <PartyView />
+    </Suspense>
+  );
+}
+
+function PartyView() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const code = (params.code as string).toUpperCase();
   
   const [party, setParty] = useState<PartyData | null>(null);
@@ -86,16 +99,24 @@ export default function PartyView() {
       const storedGuestId = localStorage.getItem(`guestId_${code}`);
       const storedGuestName = localStorage.getItem(`guestName_${code}`);
       const storedIsHost = localStorage.getItem(`isHost_${code}`) === 'true';
-      
+
+      // Check for hostKey in URL (cross-device host access)
+      const hostKey = searchParams.get('hostKey');
+      if (hostKey) {
+        // Redirect to host page with the key — it will validate and store session
+        router.push(`/party/${code}/host?hostKey=${hostKey}`);
+        return;
+      }
+
       // Fetch party first to validate
       const partyData = await fetchParty();
-      
+
       if (!partyData) {
         // Party doesn't exist
         router.push('/');
         return;
       }
-      
+
       // If host, redirect to host view
       if (storedIsHost && storedGuestId) {
         router.push(`/party/${code}/host`);
@@ -119,7 +140,7 @@ export default function PartyView() {
     };
     
     initSession();
-  }, [code, router, fetchParty, fetchLeaderboard, fetchPredictions]);
+  }, [code, router, searchParams, fetchParty, fetchLeaderboard, fetchPredictions]);
 
   // Set up polling once we have a valid session
   useEffect(() => {

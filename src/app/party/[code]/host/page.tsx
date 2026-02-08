@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useState, useEffect, useCallback, Suspense } from 'react';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { Game, GameType, LeaderboardEntry } from '@/types';
 import QRCodeDisplay from '@/components/QRCodeDisplay';
 import SquaresGrid from '@/components/SquaresGrid';
@@ -14,11 +14,24 @@ interface PartyData {
   guests: { id: string; name: string; isHost: boolean }[];
 }
 
-export default function HostDashboard() {
+export default function HostDashboardPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen bg-gradient-to-br from-[#0B162A] via-[#0f1f3a] to-[#0B162A] flex items-center justify-center">
+        <div className="text-white text-xl">Loading party...</div>
+      </main>
+    }>
+      <HostDashboard />
+    </Suspense>
+  );
+}
+
+function HostDashboard() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const code = params.code as string;
-  
+
   const [party, setParty] = useState<PartyData | null>(null);
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [guestId, setGuestId] = useState<string | null>(null);
@@ -26,6 +39,8 @@ export default function HostDashboard() {
   const [showAddPrediction, setShowAddPrediction] = useState(false);
   const [editingGame, setEditingGame] = useState<Game | null>(null);
   const [loadingTemplate, setLoadingTemplate] = useState(false);
+  const [showHostLink, setShowHostLink] = useState(false);
+  const [hostLinkCopied, setHostLinkCopied] = useState(false);
 
   const fetchParty = useCallback(async () => {
     try {
@@ -52,25 +67,57 @@ export default function HostDashboard() {
   }, [code]);
 
   useEffect(() => {
-    const storedGuestId = localStorage.getItem(`guestId_${code.toUpperCase()}`);
-    const isHost = localStorage.getItem(`isHost_${code.toUpperCase()}`) === 'true';
-    
-    if (!storedGuestId || !isHost) {
-      router.push(`/party/${code}`);
-      return;
-    }
-    
-    setGuestId(storedGuestId);
-    fetchParty();
-    fetchLeaderboard();
-    
+    const initHost = async () => {
+      const upperCode = code.toUpperCase();
+      let storedGuestId = localStorage.getItem(`guestId_${upperCode}`);
+      let isHost = localStorage.getItem(`isHost_${upperCode}`) === 'true';
+
+      // Check for hostKey in URL (allows access from another device)
+      const hostKey = searchParams.get('hostKey');
+      if (hostKey && (!storedGuestId || !isHost)) {
+        // Validate the hostKey against the party
+        try {
+          const res = await fetch(`/api/party/${code}`);
+          if (res.ok) {
+            const partyData = await res.json();
+            const hostGuest = partyData.guests.find(
+              (g: { id: string; isHost: boolean }) => g.id === hostKey && g.isHost
+            );
+            if (hostGuest) {
+              // Valid host key — save session on this device
+              localStorage.setItem(`guestId_${upperCode}`, hostGuest.id);
+              localStorage.setItem(`guestName_${upperCode}`, hostGuest.name);
+              localStorage.setItem(`isHost_${upperCode}`, 'true');
+              storedGuestId = hostGuest.id;
+              isHost = true;
+              // Clean the URL (remove hostKey param)
+              window.history.replaceState({}, '', `/party/${code}/host`);
+            }
+          }
+        } catch (err) {
+          console.error('Failed to validate host key:', err);
+        }
+      }
+
+      if (!storedGuestId || !isHost) {
+        router.push(`/party/${code}`);
+        return;
+      }
+
+      setGuestId(storedGuestId);
+      fetchParty();
+      fetchLeaderboard();
+    };
+
+    initHost();
+
     const interval = setInterval(() => {
       fetchParty();
       fetchLeaderboard();
     }, 5000);
-    
+
     return () => clearInterval(interval);
-  }, [code, router, fetchParty, fetchLeaderboard]);
+  }, [code, router, searchParams, fetchParty, fetchLeaderboard]);
 
   const toggleLock = async () => {
     if (!party) return;
@@ -302,13 +349,44 @@ export default function HostDashboard() {
         <p className="text-orange-300 mt-2">
           {party.guests.length} player{party.guests.length !== 1 ? 's' : ''} joined
         </p>
-        {/* Switch to Player View */}
-        <button
-          onClick={() => router.push(`/party/${code}/play`)}
-          className="mt-3 text-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors"
-        >
-          🎮 Switch to Player View
-        </button>
+        {/* Host link + Switch to Player View */}
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <button
+            onClick={() => setShowHostLink(!showHostLink)}
+            className="text-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            📱 Manage on Phone
+          </button>
+          <button
+            onClick={() => router.push(`/party/${code}/play`)}
+            className="text-sm bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-lg transition-colors"
+          >
+            🎮 Player View
+          </button>
+        </div>
+
+        {/* Host link copy panel */}
+        {showHostLink && guestId && (
+          <div className="mt-3 bg-white/10 border border-orange-500/30 rounded-xl p-4 max-w-sm mx-auto">
+            <p className="text-white/60 text-sm mb-2">
+              Open this link on your phone to manage the party from there:
+            </p>
+            <button
+              onClick={() => {
+                const hostLink = `${window.location.origin}/party/${code}/host?hostKey=${guestId}`;
+                navigator.clipboard.writeText(hostLink);
+                setHostLinkCopied(true);
+                setTimeout(() => setHostLinkCopied(false), 2000);
+              }}
+              className="w-full bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+            >
+              {hostLinkCopied ? '✅ Copied!' : '📋 Copy Host Link'}
+            </button>
+            <p className="text-white/30 text-xs mt-2">
+              ⚠️ Don&apos;t share this link — it gives full host access
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Lock/Unlock */}
