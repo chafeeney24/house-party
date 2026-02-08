@@ -330,19 +330,27 @@ function HostDashboard() {
       <div className="text-center mb-4">
         <h1 className="text-2xl font-bold text-white">{party.name}</h1>
         
-        {/* Party Code + QR Code */}
-        <div className="flex items-center justify-center gap-4 mt-3">
-          <div className="flex flex-col items-center">
-            <span className="bg-white/20 text-white font-mono text-lg px-4 py-1 rounded-lg tracking-widest">
-              {party.code}
-            </span>
-            <button
-              onClick={() => navigator.clipboard.writeText(`${window.location.origin}/join?code=${party.code}`)}
-              className="text-orange-300 hover:text-white text-sm mt-1"
-            >
-              📋 Copy Link
-            </button>
-          </div>
+        {/* Party Code + Share */}
+        <div className="flex items-center justify-center gap-3 mt-3">
+          <span className="bg-white/20 text-white font-mono text-lg px-4 py-1 rounded-lg tracking-widest">
+            {party.code}
+          </span>
+          <button
+            onClick={async () => {
+              const joinLink = `${window.location.origin}/join?code=${party.code}`;
+              if (navigator.share) {
+                try {
+                  await navigator.share({ title: party.name, text: `Join my party! Code: ${party.code}`, url: joinLink });
+                } catch { /* user cancelled */ }
+              } else {
+                navigator.clipboard.writeText(joinLink);
+                alert('Join link copied!');
+              }
+            }}
+            className="bg-orange-500/20 hover:bg-orange-500/30 text-orange-300 font-medium py-2 px-4 rounded-lg transition-colors text-sm"
+          >
+            📤 Share Link
+          </button>
           <QRCodeDisplay partyCode={party.code} />
         </div>
         
