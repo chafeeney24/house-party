@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, Fragment, useRef } from 'react';
+import { useState, useEffect, useCallback, Fragment } from 'react';
 import { SquaresGrid as SquaresGridType, SquareClaim, Quarter } from '@/types';
 
 interface SquaresGridProps {
@@ -16,17 +16,6 @@ interface WinningSquare {
   row: number;
   col: number;
   label: string;
-}
-
-interface ESPNData {
-  state: 'pre' | 'in' | 'post';
-  period: number;
-  clock: string;
-  detail: string;
-  homeTeam: { name: string; abbreviation: string; score: number };
-  awayTeam: { name: string; abbreviation: string; score: number };
-  quarterScores: { quarter: string; homeScore: number; awayScore: number }[];
-  isComplete: boolean;
 }
 
 // Unique colors for each guest in the grid
@@ -210,8 +199,6 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
   const [showScoreModal, setShowScoreModal] = useState<Quarter | null>(null);
   const [scoreHome, setScoreHome] = useState('');
   const [scoreAway, setScoreAway] = useState('');
-  const [liveData, setLiveData] = useState<ESPNData | null>(null);
-  const autoScoredRef = useRef<Set<string>>(new Set());
 
   const fetchGrid = useCallback(async () => {
     try {
@@ -233,84 +220,6 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
     const interval = setInterval(fetchGrid, 5000);
     return () => clearInterval(interval);
   }, [fetchGrid]);
-
-  // Poll ESPN live scores
-  useEffect(() => {
-    if (!grid?.numbersDrawn) return;
-
-    const fetchESPN = async () => {
-      try {
-        const res = await fetch(`/api/party/${partyCode}/espn`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!data.error) {
-            setLiveData(data);
-          }
-        }
-      } catch (err) {
-        console.error('ESPN fetch failed:', err);
-      }
-    };
-
-    fetchESPN();
-    // Poll more frequently during live game
-    const intervalMs = liveData?.state === 'in' ? 30000 : 300000;
-    const interval = setInterval(fetchESPN, intervalMs);
-    return () => clearInterval(interval);
-  }, [partyCode, grid?.numbersDrawn, liveData?.state]);
-
-  // Auto-submit scores from ESPN (host only)
-  useEffect(() => {
-    if (!isHost || !liveData || !grid?.numbersDrawn) return;
-    if (liveData.state === 'pre') return;
-
-    const submitQuarterScore = async (quarter: string, homeScore: number, awayScore: number) => {
-      const key = `${quarter}-${homeScore}-${awayScore}`;
-      if (autoScoredRef.current.has(key)) return;
-      autoScoredRef.current.add(key);
-
-      try {
-        await fetch(`/api/party/${partyCode}/squares`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'score',
-            quarter,
-            homeScore,
-            awayScore,
-          }),
-        });
-        fetchGrid();
-      } catch (err) {
-        console.error('Auto-score failed:', err);
-        autoScoredRef.current.delete(key);
-      }
-    };
-
-    for (const qs of liveData.quarterScores) {
-      const quarterKey = qs.quarter === 'q4' ? 'final' : qs.quarter;
-
-      // Check if this quarter is already scored in the grid
-      let alreadyScored = false;
-      if (quarterKey === 'q1' && grid.q1ScoreHome !== null) alreadyScored = true;
-      if (quarterKey === 'q2' && grid.q2ScoreHome !== null) alreadyScored = true;
-      if (quarterKey === 'q3' && grid.q3ScoreHome !== null) alreadyScored = true;
-      if (quarterKey === 'final' && grid.finalScoreHome !== null) alreadyScored = true;
-
-      // Only auto-submit if the quarter is completed and not already saved
-      // For non-final quarters, we can submit once the period advances past that quarter
-      if (!alreadyScored) {
-        const periodNum = parseInt(qs.quarter.replace('q', ''));
-        const isQuarterDone = liveData.period > periodNum || liveData.isComplete;
-
-        if (quarterKey === 'final' && liveData.isComplete) {
-          submitQuarterScore('final', qs.homeScore, qs.awayScore);
-        } else if (quarterKey !== 'final' && isQuarterDone) {
-          submitQuarterScore(quarterKey, qs.homeScore, qs.awayScore);
-        }
-      }
-    }
-  }, [isHost, liveData, grid, partyCode, fetchGrid]);
 
   const submitScore = async () => {
     if (!showScoreModal) return;
@@ -454,37 +363,6 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
 
   return (
     <div className="max-w-2xl mx-auto">
-      {/* Live Scoreboard */}
-      {liveData && liveData.state !== 'pre' && (
-        <div className="bg-gradient-to-r from-[#1a1a2e] to-[#16213e] border border-white/10 rounded-xl p-4 mb-4">
-          <div className="flex justify-between items-center max-w-xs mx-auto">
-            <div className="text-center min-w-[60px]">
-              <div className="text-white/50 text-[10px] font-medium uppercase tracking-wider">{liveData.awayTeam.abbreviation}</div>
-              <div className="text-3xl font-bold text-white">{liveData.awayTeam.score}</div>
-            </div>
-            <div className="text-center px-3">
-              {liveData.state === 'in' && (
-                <div className="flex items-center justify-center gap-1.5 mb-0.5">
-                  <span className="relative flex h-2 w-2">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                  </span>
-                  <span className="text-red-400 text-[10px] font-bold uppercase">Live</span>
-                </div>
-              )}
-              <div className="text-orange-300 text-xs font-semibold">{liveData.detail}</div>
-              {liveData.state === 'in' && liveData.clock && (
-                <div className="text-white/40 text-sm font-mono">{liveData.clock}</div>
-              )}
-            </div>
-            <div className="text-center min-w-[60px]">
-              <div className="text-white/50 text-[10px] font-medium uppercase tracking-wider">{liveData.homeTeam.abbreviation}</div>
-              <div className="text-3xl font-bold text-white">{liveData.homeTeam.score}</div>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className="text-center mb-3">
         <h2 className="text-lg font-bold text-white">🏈 Super Bowl Squares</h2>
@@ -493,7 +371,7 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
         </p>
       </div>
 
-      {/* Host Score Controls (fallback) */}
+      {/* Host Score Controls */}
       {isHost && grid.numbersDrawn && (
         <div className="flex flex-wrap gap-2 justify-center mb-3">
           {[
@@ -757,7 +635,7 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
         );
       })()}
 
-      {/* Score Modal (fallback for manual entry) */}
+      {/* Score Modal */}
       {showScoreModal && (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-[#0f1f3a] border border-white/10 rounded-2xl p-6 max-w-sm w-full">
