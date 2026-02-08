@@ -230,6 +230,7 @@ export default function HostPlayView() {
           guestId={guestId}
           isHost={false}
           wantsSquares={party.guests.find(g => g.id === guestId)?.wantsSquares}
+          squaresPlayerCount={party.guests.filter(g => g.wantsSquares).length}
         />
       )}
 

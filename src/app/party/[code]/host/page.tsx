@@ -596,7 +596,7 @@ function HostDashboard() {
 
       {/* Squares Tab */}
       {activeTab === 'squares' && guestId && (
-        <SquaresGrid partyCode={code} guestId={guestId} isHost={true} />
+        <SquaresGrid partyCode={code} guestId={guestId} isHost={true} squaresPlayerCount={party.guests.filter(g => g.wantsSquares).length} />
       )}
 
       {/* Leaderboard Tab */}

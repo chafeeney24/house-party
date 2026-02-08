@@ -8,6 +8,7 @@ interface SquaresGridProps {
   guestId: string;
   isHost: boolean;
   wantsSquares?: boolean;
+  squaresPlayerCount?: number;
 }
 
 interface WinningSquare {
@@ -44,7 +45,41 @@ const GUEST_COLORS = [
   { bg: 'bg-violet-500', text: 'text-white', hex: '#8b5cf6' },
 ];
 
-export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }: SquaresGridProps) {
+// Payout percentages: Q1=10%, Q2=30%, Q3=10%, Final=50%
+const PAYOUT_SPLITS = [
+  { quarter: 'Q1', pct: 0.10 },
+  { quarter: 'Halftime', pct: 0.30 },
+  { quarter: 'Q3', pct: 0.10 },
+  { quarter: 'Final', pct: 0.50 },
+];
+
+function PayoutTable({ playerCount }: { playerCount: number }) {
+  const pot = playerCount * 10;
+  if (pot === 0) return null;
+
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-white font-bold text-sm">💰 Payouts</h3>
+        <span className="text-emerald-400 text-sm font-semibold">${pot} pot</span>
+      </div>
+      <div className="grid grid-cols-4 gap-2">
+        {PAYOUT_SPLITS.map(({ quarter, pct }) => (
+          <div key={quarter} className="text-center">
+            <div className="text-white/50 text-[10px] uppercase tracking-wider mb-1">{quarter}</div>
+            <div className="text-white font-bold text-sm">${Math.round(pot * pct)}</div>
+            <div className="text-white/30 text-[10px]">{Math.round(pct * 100)}%</div>
+          </div>
+        ))}
+      </div>
+      <p className="text-white/30 text-[10px] mt-2 text-center">
+        $10 buy-in &middot; {playerCount} player{playerCount !== 1 ? 's' : ''} &middot; Final includes OT
+      </p>
+    </div>
+  );
+}
+
+export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, squaresPlayerCount }: SquaresGridProps) {
   const [grid, setGrid] = useState<SquaresGridType | null>(null);
   const [loading, setLoading] = useState(true);
   const [showScoreModal, setShowScoreModal] = useState<Quarter | null>(null);
@@ -274,6 +309,11 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }
             </div>
           )}
         </div>
+        {squaresPlayerCount !== undefined && squaresPlayerCount > 0 && (
+          <div className="mt-4">
+            <PayoutTable playerCount={squaresPlayerCount} />
+          </div>
+        )}
       </div>
     );
   }
@@ -508,6 +548,13 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }
         </div>
       )}
 
+      {/* Payouts */}
+      {squaresPlayerCount !== undefined && squaresPlayerCount > 0 && (
+        <div className="mt-4">
+          <PayoutTable playerCount={squaresPlayerCount} />
+        </div>
+      )}
+
       {/* Winners List */}
       {grid.numbersDrawn && getWinningSquares().length > 0 && (
         <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
@@ -515,6 +562,11 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }
           {getWinningSquares().map((w) => {
             const claim = getClaimForSquare(w.row, w.col);
             const color = claim ? guestColorMap.get(claim.guestId) : null;
+            const pot = (squaresPlayerCount || 0) * 10;
+            const payout = w.label === 'Q1' ? pot * 0.10
+              : w.label === 'Q2' ? pot * 0.30
+              : w.label === 'Q3' ? pot * 0.10
+              : pot * 0.50;
             return (
               <div key={w.quarter} className="flex items-center gap-2 text-sm py-1">
                 <span className="text-orange-300 font-semibold w-10">{w.label}</span>
@@ -526,11 +578,16 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares }
                 ) : (
                   <span className="text-white/40">Unclaimed</span>
                 )}
-                {grid.homeNumbers && grid.awayNumbers && (
-                  <span className="text-white/30 text-xs ml-auto">
-                    ({grid.awayNumbers[w.row]}-{grid.homeNumbers[w.col]})
-                  </span>
-                )}
+                <span className="ml-auto flex items-center gap-2">
+                  {pot > 0 && (
+                    <span className="text-emerald-400 text-xs font-bold">${Math.round(payout)}</span>
+                  )}
+                  {grid.homeNumbers && grid.awayNumbers && (
+                    <span className="text-white/30 text-xs">
+                      ({grid.awayNumbers[w.row]}-{grid.homeNumbers[w.col]})
+                    </span>
+                  )}
+                </span>
               </div>
             );
           })}
