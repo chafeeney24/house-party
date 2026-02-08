@@ -666,17 +666,22 @@ function PredictionModal({
   onSave: (gameData: { type?: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number }) => void;
 }) {
   const isEditing = !!game;
+  const [existingQuestion, existingHint] = (game?.question || '').split('\n');
   const [type, setType] = useState<GameType>(game?.type || 'pick-one');
-  const [question, setQuestion] = useState(game?.question || '');
+  const [question, setQuestion] = useState(existingQuestion || '');
+  const [hint, setHint] = useState(existingHint || '');
   const [options, setOptions] = useState<string[]>(game?.options || ['', '']);
   const [overUnderValue, setOverUnderValue] = useState(game?.overUnderValue?.toString() || '');
   const [points, setPoints] = useState(game?.points?.toString() || '1');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    // Combine question and hint with newline separator
+    const fullQuestion = hint.trim() ? `${question}\n${hint.trim()}` : question;
+
     const gameData: { type?: GameType; question: string; options?: string[]; overUnderValue?: number; points?: number } = {
-      question,
+      question: fullQuestion,
       points: Number(points) || 1,
     };
 
@@ -733,6 +738,18 @@ function PredictionModal({
               className="w-full bg-white/20 text-white py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400"
               placeholder="e.g., Who will win the coin toss?"
               required
+            />
+          </div>
+
+          {/* Hint / Fun Fact */}
+          <div>
+            <label className="block text-white/60 mb-2 text-sm">Hint / Fun Fact <span className="text-white/30">(optional)</span></label>
+            <input
+              type="text"
+              value={hint}
+              onChange={(e) => setHint(e.target.value)}
+              className="w-full bg-white/20 text-white/70 py-3 px-4 rounded-lg border border-white/30 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm italic"
+              placeholder="e.g., Tails leads all-time 31-28"
             />
           </div>
 
