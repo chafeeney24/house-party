@@ -146,7 +146,7 @@ function JoinPartyForm() {
               </div>
               <div>
                 <p className="text-white font-medium text-sm">🏈 Super Bowl Squares ($10)</p>
-                <p className="text-white/40 text-xs mt-0.5">Get randomly assigned squares for each quarter</p>
+                <p className="text-white/40 text-xs mt-0.5">Payouts for each quarter (you should join)</p>
               </div>
             </div>
 
