@@ -98,6 +98,10 @@ export interface SquaresGrid {
   q3ScoreAway: number | null;
   finalScoreHome: number | null;
   finalScoreAway: number | null;
+  payoutQ1: number;
+  payoutQ2: number;
+  payoutQ3: number;
+  payoutFinal: number;
   claims: SquareClaim[];
 }
 

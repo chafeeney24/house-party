@@ -64,6 +64,10 @@ export interface DbSquaresGrid {
   q3_score_away: number | null;
   final_score_home: number | null;
   final_score_away: number | null;
+  payout_q1: number;
+  payout_q2: number;
+  payout_q3: number;
+  payout_final: number;
   created_at: string;
 }
 

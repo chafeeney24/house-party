@@ -89,6 +89,10 @@ export async function GET(
       q3ScoreAway: grid.q3_score_away,
       finalScoreHome: grid.final_score_home,
       finalScoreAway: grid.final_score_away,
+      payoutQ1: grid.payout_q1,
+      payoutQ2: grid.payout_q2,
+      payoutQ3: grid.payout_q3,
+      payoutFinal: grid.payout_final,
       claims: formattedClaims,
     },
   });
@@ -385,6 +389,31 @@ export async function PATCH(
       guestCount: guests.length,
       squaresPerGuest: Math.floor(100 / guests.length),
     });
+  }
+
+  // Action: update payout amounts
+  if (body.action === 'update-payouts') {
+    const { payoutQ1, payoutQ2, payoutQ3, payoutFinal } = body;
+
+    if ([payoutQ1, payoutQ2, payoutQ3, payoutFinal].some(v => typeof v !== 'number' || v < 0)) {
+      return NextResponse.json({ error: 'All payout values must be non-negative numbers' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('squares_grids')
+      .update({
+        payout_q1: payoutQ1,
+        payout_q2: payoutQ2,
+        payout_q3: payoutQ3,
+        payout_final: payoutFinal,
+      })
+      .eq('id', grid.id);
+
+    if (error) {
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

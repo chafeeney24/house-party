@@ -45,30 +45,155 @@ const GUEST_COLORS = [
   { bg: 'bg-violet-500', text: 'text-white', hex: '#8b5cf6' },
 ];
 
-// Payout percentages: Q1=10%, Q2=30%, Q3=10%, Final=50%
-const PAYOUT_SPLITS = [
-  { quarter: 'Q1', pct: 0.10 },
-  { quarter: 'Halftime', pct: 0.30 },
-  { quarter: 'Q3', pct: 0.10 },
-  { quarter: 'Final', pct: 0.50 },
-];
+// Default payout percentages when no custom amounts are set
+const DEFAULT_PAYOUT_PCTS = { q1: 0.10, q2: 0.30, q3: 0.10, final: 0.50 };
 
-function PayoutTable({ playerCount }: { playerCount: number }) {
+interface PayoutAmounts {
+  q1: number;
+  q2: number;
+  q3: number;
+  final: number;
+}
+
+// Get effective payout amounts: use stored values if any are non-zero, else calculate defaults
+function getPayouts(grid: SquaresGridType | null, playerCount: number): PayoutAmounts {
   const pot = playerCount * 10;
+  if (grid && (grid.payoutQ1 || grid.payoutQ2 || grid.payoutQ3 || grid.payoutFinal)) {
+    return { q1: grid.payoutQ1, q2: grid.payoutQ2, q3: grid.payoutQ3, final: grid.payoutFinal };
+  }
+  return {
+    q1: Math.round(pot * DEFAULT_PAYOUT_PCTS.q1),
+    q2: Math.round(pot * DEFAULT_PAYOUT_PCTS.q2),
+    q3: Math.round(pot * DEFAULT_PAYOUT_PCTS.q3),
+    final: Math.round(pot * DEFAULT_PAYOUT_PCTS.final),
+  };
+}
+
+function PayoutTable({ playerCount, payouts, isHost, onSave }: {
+  playerCount: number;
+  payouts: PayoutAmounts;
+  isHost: boolean;
+  onSave?: (payouts: PayoutAmounts) => void;
+}) {
+  const pot = playerCount * 10;
+  const [editing, setEditing] = useState(false);
+  const [editQ1, setEditQ1] = useState(String(payouts.q1));
+  const [editQ2, setEditQ2] = useState(String(payouts.q2));
+  const [editQ3, setEditQ3] = useState(String(payouts.q3));
+  const [editFinal, setEditFinal] = useState(String(payouts.final));
+
   if (pot === 0) return null;
+
+  const quarters = [
+    { label: 'Q1', value: payouts.q1 },
+    { label: 'Halftime', value: payouts.q2 },
+    { label: 'Q3', value: payouts.q3 },
+    { label: 'Final', value: payouts.final },
+  ];
+
+  const handleEdit = () => {
+    setEditQ1(String(payouts.q1));
+    setEditQ2(String(payouts.q2));
+    setEditQ3(String(payouts.q3));
+    setEditFinal(String(payouts.final));
+    setEditing(true);
+  };
+
+  const handleSave = () => {
+    const newPayouts: PayoutAmounts = {
+      q1: parseInt(editQ1) || 0,
+      q2: parseInt(editQ2) || 0,
+      q3: parseInt(editQ3) || 0,
+      final: parseInt(editFinal) || 0,
+    };
+    onSave?.(newPayouts);
+    setEditing(false);
+  };
+
+  if (editing) {
+    const total = (parseInt(editQ1) || 0) + (parseInt(editQ2) || 0) + (parseInt(editQ3) || 0) + (parseInt(editFinal) || 0);
+    const isBalanced = total === pot;
+
+    return (
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-white font-bold text-sm">💰 Edit Payouts</h3>
+          <span className={`text-sm font-semibold ${isBalanced ? 'text-emerald-400' : 'text-red-400'}`}>
+            ${total} / ${pot}
+          </span>
+        </div>
+        <div className="grid grid-cols-4 gap-2">
+          {[
+            { label: 'Q1', value: editQ1, setter: setEditQ1 },
+            { label: 'Halftime', value: editQ2, setter: setEditQ2 },
+            { label: 'Q3', value: editQ3, setter: setEditQ3 },
+            { label: 'Final', value: editFinal, setter: setEditFinal },
+          ].map(({ label, value, setter }) => (
+            <div key={label} className="text-center">
+              <div className="text-white/50 text-[10px] uppercase tracking-wider mb-1">{label}</div>
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-white/40 text-sm">$</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  value={value}
+                  onChange={(e) => setter(e.target.value)}
+                  className="w-full bg-white/10 text-white text-center rounded-lg py-2 px-1 pl-5 border border-white/20 focus:outline-none focus:ring-2 focus:ring-orange-400 text-sm font-bold"
+                />
+              </div>
+              {pot > 0 && (
+                <div className="text-white/30 text-[10px] mt-1">{Math.round(((parseInt(value) || 0) / pot) * 100)}%</div>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 mt-3">
+          <button
+            onClick={() => setEditing(false)}
+            className="flex-1 bg-white/10 text-white/60 py-2 rounded-lg text-xs font-medium border border-white/10"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="flex-1 bg-gradient-to-r from-orange-500 to-amber-500 text-white py-2 rounded-lg text-xs font-bold"
+          >
+            Save
+          </button>
+        </div>
+        {!isBalanced && (
+          <p className="text-red-400/70 text-[10px] mt-2 text-center">
+            Total doesn&apos;t match ${pot} pot — {total < pot ? `$${pot - total} unallocated` : `$${total - pot} over`}
+          </p>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white/5 border border-white/10 rounded-xl p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-white font-bold text-sm">💰 Payouts</h3>
-        <span className="text-emerald-400 text-sm font-semibold">${pot} pot</span>
+        <div className="flex items-center gap-2">
+          <span className="text-emerald-400 text-sm font-semibold">${pot} pot</span>
+          {isHost && onSave && (
+            <button
+              onClick={handleEdit}
+              className="text-orange-400 hover:text-orange-300 text-xs font-medium"
+            >
+              ✏️ Edit
+            </button>
+          )}
+        </div>
       </div>
       <div className="grid grid-cols-4 gap-2">
-        {PAYOUT_SPLITS.map(({ quarter, pct }) => (
-          <div key={quarter} className="text-center">
-            <div className="text-white/50 text-[10px] uppercase tracking-wider mb-1">{quarter}</div>
-            <div className="text-white font-bold text-sm">${Math.round(pot * pct)}</div>
-            <div className="text-white/30 text-[10px]">{Math.round(pct * 100)}%</div>
+        {quarters.map(({ label, value }) => (
+          <div key={label} className="text-center">
+            <div className="text-white/50 text-[10px] uppercase tracking-wider mb-1">{label}</div>
+            <div className="text-white font-bold text-sm">${value}</div>
+            {pot > 0 && (
+              <div className="text-white/30 text-[10px]">{Math.round((value / pot) * 100)}%</div>
+            )}
           </div>
         ))}
       </div>
@@ -311,7 +436,16 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
         </div>
         {squaresPlayerCount !== undefined && squaresPlayerCount > 0 && (
           <div className="mt-4">
-            <PayoutTable playerCount={squaresPlayerCount} />
+            <PayoutTable
+              playerCount={squaresPlayerCount}
+              payouts={getPayouts(grid, squaresPlayerCount)}
+              isHost={false}
+            />
+            {isHost && (
+              <p className="text-white/30 text-[10px] mt-2 text-center">
+                You can customize payouts after locking predictions
+              </p>
+            )}
           </div>
         )}
       </div>
@@ -551,48 +685,77 @@ export default function SquaresGrid({ partyCode, guestId, isHost, wantsSquares, 
       {/* Payouts */}
       {squaresPlayerCount !== undefined && squaresPlayerCount > 0 && (
         <div className="mt-4">
-          <PayoutTable playerCount={squaresPlayerCount} />
+          <PayoutTable
+            playerCount={squaresPlayerCount}
+            payouts={getPayouts(grid, squaresPlayerCount)}
+            isHost={isHost}
+            onSave={async (newPayouts) => {
+              // Optimistic update
+              if (grid) {
+                setGrid({ ...grid, payoutQ1: newPayouts.q1, payoutQ2: newPayouts.q2, payoutQ3: newPayouts.q3, payoutFinal: newPayouts.final });
+              }
+              try {
+                const res = await fetch(`/api/party/${partyCode}/squares`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    action: 'update-payouts',
+                    payoutQ1: newPayouts.q1,
+                    payoutQ2: newPayouts.q2,
+                    payoutQ3: newPayouts.q3,
+                    payoutFinal: newPayouts.final,
+                  }),
+                });
+                if (!res.ok) fetchGrid();
+              } catch (err) {
+                console.error('Failed to save payouts:', err);
+                fetchGrid();
+              }
+            }}
+          />
         </div>
       )}
 
       {/* Winners List */}
-      {grid.numbersDrawn && getWinningSquares().length > 0 && (
-        <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
-          <h3 className="text-white font-bold mb-2 text-sm">🏆 Winners</h3>
-          {getWinningSquares().map((w) => {
-            const claim = getClaimForSquare(w.row, w.col);
-            const color = claim ? guestColorMap.get(claim.guestId) : null;
-            const pot = (squaresPlayerCount || 0) * 10;
-            const payout = w.label === 'Q1' ? pot * 0.10
-              : w.label === 'Q2' ? pot * 0.30
-              : w.label === 'Q3' ? pot * 0.10
-              : pot * 0.50;
-            return (
-              <div key={w.quarter} className="flex items-center gap-2 text-sm py-1">
-                <span className="text-orange-300 font-semibold w-10">{w.label}</span>
-                {claim ? (
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-2.5 h-2.5 rounded-sm ${color?.bg || 'bg-gray-500'}`} />
-                    <span className="text-white">{claim.guestName}</span>
-                  </span>
-                ) : (
-                  <span className="text-white/40">Unclaimed</span>
-                )}
-                <span className="ml-auto flex items-center gap-2">
-                  {pot > 0 && (
-                    <span className="text-emerald-400 text-xs font-bold">${Math.round(payout)}</span>
-                  )}
-                  {grid.homeNumbers && grid.awayNumbers && (
-                    <span className="text-white/30 text-xs">
-                      ({grid.awayNumbers[w.row]}-{grid.homeNumbers[w.col]})
+      {grid.numbersDrawn && getWinningSquares().length > 0 && (() => {
+        const effectivePayouts = getPayouts(grid, squaresPlayerCount || 0);
+        return (
+          <div className="mt-4 bg-white/5 border border-white/10 rounded-xl p-4">
+            <h3 className="text-white font-bold mb-2 text-sm">🏆 Winners</h3>
+            {getWinningSquares().map((w) => {
+              const claim = getClaimForSquare(w.row, w.col);
+              const color = claim ? guestColorMap.get(claim.guestId) : null;
+              const payout = w.label === 'Q1' ? effectivePayouts.q1
+                : w.label === 'Q2' ? effectivePayouts.q2
+                : w.label === 'Q3' ? effectivePayouts.q3
+                : effectivePayouts.final;
+              return (
+                <div key={w.quarter} className="flex items-center gap-2 text-sm py-1">
+                  <span className="text-orange-300 font-semibold w-10">{w.label}</span>
+                  {claim ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className={`w-2.5 h-2.5 rounded-sm ${color?.bg || 'bg-gray-500'}`} />
+                      <span className="text-white">{claim.guestName}</span>
                     </span>
+                  ) : (
+                    <span className="text-white/40">Unclaimed</span>
                   )}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                  <span className="ml-auto flex items-center gap-2">
+                    {payout > 0 && (
+                      <span className="text-emerald-400 text-xs font-bold">${payout}</span>
+                    )}
+                    {grid.homeNumbers && grid.awayNumbers && (
+                      <span className="text-white/30 text-xs">
+                        ({grid.awayNumbers[w.row]}-{grid.homeNumbers[w.col]})
+                      </span>
+                    )}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       {/* Score Modal (fallback for manual entry) */}
       {showScoreModal && (
